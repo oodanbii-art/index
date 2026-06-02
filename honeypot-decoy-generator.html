@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DECOY GENERATOR // HONEYPOT SYSTEM</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --green: #00ff41;
+    --dim-green: #00aa2a;
+    --dark-green: #003a0f;
+    --bg: #000a00;
+    --red: #ff003c;
+    --yellow: #ffe000;
+    --panel: rgba(0,255,65,0.05);
+    --border: rgba(0,255,65,0.2);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline effect */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.15) 2px,
+      rgba(0,0,0,0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0,255,65,0.03);
+  }
+
+  .logo {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 900;
+    letter-spacing: 4px;
+    text-shadow: 0 0 20px var(--green);
+  }
+
+  .logo span { color: var(--red); }
+
+  .status-bar {
+    display: flex;
+    gap: 24px;
+    font-size: 0.7rem;
+    color: var(--dim-green);
+  }
+
+  .status-item { display: flex; align-items: center; gap: 6px; }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse 1.5s infinite;
+  }
+  .dot.red { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 1px;
+    background: var(--border);
+    min-height: calc(100vh - 60px);
+  }
+
+  .panel {
+    background: var(--bg);
+    padding: 20px;
+    position: relative;
+  }
+
+  .panel-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 3px;
+    color: var(--dim-green);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+
+  /* DETECTION PANEL */
+  .detection-panel { grid-column: 1; grid-row: 1; }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .metric {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .metric::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 2px; height: 100%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+  }
+
+  .metric-label { font-size: 0.6rem; color: var(--dim-green); letter-spacing: 2px; }
+  .metric-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-top: 4px;
+    text-shadow: 0 0 10px var(--green);
+  }
+  .metric-value.alert { color: var(--red); text-shadow: 0 0 10px var(--red); }
+  .metric-value.warn { color: var(--yellow); text-shadow: 0 0 10px var(--yellow); }
+
+  .threat-bar {
+    margin-bottom: 16px;
+  }
+
+  .threat-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    margin-bottom: 6px;
+    color: var(--dim-green);
+  }
+
+  .bar-track {
+    height: 6px;
+    background: rgba(0,255,65,0.1);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    transition: width 0.5s ease;
+    position: relative;
+  }
+
+  .bar-fill.high { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .bar-fill.med { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+
+  /* CONTROLS PANEL */
+  .controls-panel { grid-column: 2; grid-row: 1; }
+
+  .control-group { margin-bottom: 16px; }
+  .control-label {
+    font-size: 0.6rem;
+    color: var(--dim-green);
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    background: var(--border);
+    outline: none;
+    border: none;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    cursor: pointer;
+  }
+
+  .slider-val {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.75rem;
+    min-width: 36px;
+    text-align: right;
+    color: var(--green);
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.7rem;
+  }
+
+  .toggle {
+    width: 36px; height: 18px;
+    background: var(--border);
+    border-radius: 9px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+
+  .toggle.on { background: var(--dark-green); border: 1px solid var(--green); }
+
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 12px; height: 12px;
+    background: var(--dim-green);
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: left 0.3s, background 0.3s;
+  }
+
+  .toggle.on::after { left: 21px; background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+  .btn {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 3px;
+    cursor: pointer;
+    text-transform: uppercase;
+    margin-top: 8px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn:hover {
+    background: var(--dark-green);
+    box-shadow: 0 0 20px rgba(0,255,65,0.3);
+  }
+
+  .btn.danger {
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .btn.danger:hover {
+    background: rgba(255,0,60,0.1);
+    box-shadow: 0 0 20px rgba(255,0,60,0.3);
+  }
+
+  .btn.active {
+    background: var(--dark-green);
+    box-shadow: 0 0 20px rgba(0,255,65,0.4), inset 0 0 20px rgba(0,255,65,0.1);
+  }
+
+  /* LOG PANEL */
+  .log-panel { grid-column: 1; grid-row: 2; }
+
+  .log-feed {
+    height: 280px;
+    overflow-y: auto;
+    font-size: 0.68rem;
+    line-height: 1.8;
+    color: var(--dim-green);
+  }
+
+  .log-feed::-webkit-scrollbar { width: 4px; }
+  .log-feed::-webkit-scrollbar-track { background: transparent; }
+  .log-feed::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .log-entry { padding: 2px 0; border-bottom: 1px solid rgba(0,255,65,0.05); }
+  .log-entry .time { color: rgba(0,255,65,0.4); margin-right: 8px; }
+  .log-entry.warn .msg { color: var(--yellow); }
+  .log-entry.alert .msg { color: var(--red); }
+  .log-entry.trap .msg { color: var(--green); text-shadow: 0 0 6px var(--green); }
+
+  /* DECOY PREVIEW PANEL */
+  .preview-panel { grid-column: 2; grid-row: 2; }
+
+  .decoy-output {
+    background: rgba(0,255,65,0.03);
+    border: 1px solid var(--border);
+    padding: 12px;
+    height: 280px;
+    overflow-y: auto;
+    font-size: 0.62rem;
+    line-height: 1.6;
+    color: rgba(0,255,65,0.6);
+    word-break: break-all;
+  }
+
+  .decoy-output::-webkit-scrollbar { width: 4px; }
+  .decoy-output::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .gen-tag { color: var(--dim-green); }
+  .gen-attr { color: rgba(0,200,255,0.7); }
+  .gen-val { color: rgba(255,200,0,0.7); }
+
+  /* Counter animation */
+  @keyframes countUp {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .blink { animation: blink 1s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .fullspan { grid-column: 1 / -1; }
+
+  .footer {
+    grid-column: 1 / -1;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding: 8px 20px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6rem;
+    color: rgba(0,255,65,0.3);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">DECOY<span>::</span>GEN <span style="font-size:0.6rem;color:var(--dim-green);letter-spacing:2px;">HONEYPOT SYSTEM v1.0</span></div>
+  <div class="status-bar">
+    <div class="status-item"><div class="dot"></div> SYSTEM ONLINE</div>
+    <div class="status-item"><div class="dot red" id="threat-dot" style="animation:none;opacity:0.2"></div> THREAT DETECTED</div>
+    <div class="status-item" id="session-id">SESSION: <span id="sid">--</span></div>
+  </div>
+</header>
+
+<div class="grid">
+
+  <!-- DETECTION PANEL -->
+  <div class="panel detection-panel">
+    <div class="panel-title">// DETECTION METRICS</div>
+
+    <div class="metric-grid">
+      <div class="metric">
+        <div class="metric-label">REQUESTS / MIN</div>
+        <div class="metric-value" id="req-count">0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">TRAPPED BOTS</div>
+        <div class="metric-value" id="trap-count">0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">DECOY PAGES</div>
+        <div class="metric-value" id="decoy-count">0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">THREAT LEVEL</div>
+        <div class="metric-value" id="threat-level">LOW</div>
+      </div>
+    </div>
+
+    <div class="threat-bar">
+      <div class="threat-label"><span>BOT PROBABILITY</span><span id="bot-pct">0%</span></div>
+      <div class="bar-track"><div class="bar-fill" id="bot-bar" style="width:0%"></div></div>
+    </div>
+    <div class="threat-bar">
+      <div class="threat-label"><span>REQUEST RATE</span><span id="rate-pct">0%</span></div>
+      <div class="bar-track"><div class="bar-fill" id="rate-bar" style="width:0%"></div></div>
+    </div>
+    <div class="threat-bar">
+      <div class="threat-label"><span>DECOY DEPTH</span><span id="depth-pct">0</span></div>
+      <div class="bar-track"><div class="bar-fill" id="depth-bar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- CONTROLS PANEL -->
+  <div class="panel controls-panel">
+    <div class="panel-title">// SYSTEM CONTROLS</div>
+
+    <div class="control-group">
+      <span class="control-label">TRIGGER THRESHOLD (requests)</span>
+      <div class="slider-row">
+        <input type="range" min="1" max="50" value="10" id="threshold-slider"
+          oninput="document.getElementById('threshold-val').textContent=this.value">
+        <span class="slider-val" id="threshold-val">10</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label">DECOY DEPTH (iframe layers)</span>
+      <div class="slider-row">
+        <input type="range" min="1" max="20" value="5" id="depth-slider"
+          oninput="document.getElementById('depth-val').textContent=this.value">
+        <span class="slider-val" id="depth-val">5</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label">HTML GENERATION SPEED</span>
+      <div class="slider-row">
+        <input type="range" min="1" max="10" value="5" id="speed-slider"
+          oninput="document.getElementById('speed-val').textContent=this.value">
+        <span class="slider-val" id="speed-val">5</span>
+      </div>
+    </div>
+
+    <div class="toggle-row">
+      <span>AUTO-TRAP BOTS</span>
+      <div class="toggle on" id="toggle-autotrap" onclick="toggleSwitch(this)"></div>
+    </div>
+    <div class="toggle-row">
+      <span>ENDLESS HTML MODE</span>
+      <div class="toggle on" id="toggle-endless" onclick="toggleSwitch(this)"></div>
+    </div>
+    <div class="toggle-row">
+      <span>IFRAME LABYRINTH</span>
+      <div class="toggle" id="toggle-iframe" onclick="toggleSwitch(this)"></div>
+    </div>
+    <div class="toggle-row">
+      <span>FINGERPRINT LOGGING</span>
+      <div class="toggle on" id="toggle-log" onclick="toggleSwitch(this)"></div>
+    </div>
+
+    <button class="btn active" id="main-btn" onclick="toggleSystem()">■ SYSTEM ACTIVE</button>
+    <button class="btn danger" onclick="simulateAttack()">⚡ SIMULATE ATTACK</button>
+  </div>
+
+  <!-- LOG PANEL -->
+  <div class="panel log-panel">
+    <div class="panel-title">// ACTIVITY LOG <span class="blink">_</span></div>
+    <div class="log-feed" id="log-feed"></div>
+  </div>
+
+  <!-- DECOY PREVIEW -->
+  <div class="panel preview-panel">
+    <div class="panel-title">// GENERATED DECOY HTML PREVIEW</div>
+    <div class="decoy-output" id="decoy-output">
+      <span style="color:rgba(0,255,65,0.3)">// awaiting trigger — decoy HTML will stream here...</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>HONEYPOT DECOY GENERATOR // DEFENSIVE SECURITY TOOL</span>
+    <span id="clock"></span>
+  </div>
+</div>
+
+<script>
+  let systemActive = true;
+  let requestCount = 0;
+  let trapCount = 0;
+  let decoyCount = 0;
+  let botPct = 0;
+  let depthLevel = 0;
+  let isAttacking = false;
+  let attackInterval = null;
+
+  // Session ID
+  document.getElementById('sid').textContent = Math.random().toString(36).substr(2,8).toUpperCase();
+
+  // Clock
+  function updateClock() {
+    document.getElementById('clock').textContent = new Date().toISOString().replace('T',' ').split('.')[0];
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  function toggleSwitch(el) {
+    el.classList.toggle('on');
+  }
+
+  function toggleSystem() {
+    systemActive = !systemActive;
+    const btn = document.getElementById('main-btn');
+    if (systemActive) {
+      btn.textContent = '■ SYSTEM ACTIVE';
+      btn.classList.add('active');
+      addLog('SYSTEM', 'Honeypot system activated', 'trap');
+    } else {
+      btn.textContent = '▶ SYSTEM INACTIVE';
+      btn.classList.remove('active');
+      addLog('SYSTEM', 'Honeypot system deactivated', 'warn');
+      if (isAttacking) stopAttack();
+    }
+  }
+
+  function addLog(source, msg, type = '') {
+    const feed = document.getElementById('log-feed');
+    const now = new Date().toISOString().split('T')[1].split('.')[0];
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.innerHTML = `<span class="time">[${now}]</span><span style="color:rgba(0,255,65,0.5);margin-right:8px">[${source}]</span><span class="msg">${msg}</span>`;
+    feed.appendChild(entry);
+    feed.scrollTop = feed.scrollHeight;
+
+    // Keep log trimmed
+    while (feed.children.length > 80) feed.removeChild(feed.firstChild);
+  }
+
+  // Random content generators
+  const fakeRoutes = ['/admin','/wp-login','/config','/backup','/api/users','/etc/passwd','/shell','/phpmyadmin','/login','/dashboard'];
+  const fakeAgents = ['python-requests/2.28','curl/7.79','Scrapy/2.6','Go-http-client/1.1','masscan','sqlmap/1.6'];
+  const fakeIPs = () => `${rand(1,254)}.${rand(0,255)}.${rand(0,255)}.${rand(1,254)}`;
+  const rand = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+
+  function generateDecoyHTML(depth) {
+    const tags = ['div','section','article','span','p','aside','nav','header','footer','main'];
+    const ids = ['content','wrapper','data','info','user','admin','config','api','token','session'];
+    const classes = ['hidden','private','secure','admin','user-data','config','auth','token'];
+
+    let html = '';
+    const lines = rand(8, 20);
+
+    for (let i = 0; i < lines; i++) {
+      const tag = tags[rand(0, tags.length-1)];
+      const id = ids[rand(0, ids.length-1)] + '-' + rand(100,999);
+      const cls = classes[rand(0, classes.length-1)];
+      const val = Math.random().toString(36).substr(2, rand(8,24));
+      html += `<span class="gen-tag">&lt;${tag}</span> <span class="gen-attr">id</span>=<span class="gen-val">"${id}"</span> <span class="gen-attr">class</span>=<span class="gen-val">"${cls}"</span><span class="gen-tag">&gt;</span>${val}<span class="gen-tag">&lt;/${tag}&gt;</span>\n`;
+
+      if (depth > 3 && Math.random() > 0.7) {
+        html += `<span class="gen-tag">&lt;iframe</span> <span class="gen-attr">src</span>=<span class="gen-val">"/decoy/${rand(1000,9999)}"</span> <span class="gen-attr">sandbox</span>=<span class="gen-val">""</span><span class="gen-tag">&gt;&lt;/iframe&gt;</span>\n`;
+      }
+    }
+    return html;
+  }
+
+  function streamDecoyHTML() {
+    const output = document.getElementById('decoy-output');
+    const depth = parseInt(document.getElementById('depth-slider').value);
+    const speed = parseInt(document.getElementById('speed-slider').value);
+
+    output.innerHTML = `<span style="color:var(--dim-green)">// GENERATING DECOY LAYER ${decoyCount} // DEPTH:${depth}</span>\n\n`;
+
+    let iteration = 0;
+    const maxIterations = depth * 3;
+
+    const stream = setInterval(() => {
+      if (iteration >= maxIterations) {
+        clearInterval(stream);
+        output.innerHTML += `\n<span style="color:var(--red)">// ENDLESS MODE: LOOPING... BOT TRAPPED ✓</span>`;
+        return;
+      }
+      output.innerHTML += generateDecoyHTML(depth);
+      output.scrollTop = output.scrollHeight;
+      iteration++;
+    }, 1100 - (speed * 100));
+  }
+
+  function updateMetrics() {
+    document.getElementById('req-count').textContent = requestCount;
+    document.getElementById('trap-count').textContent = trapCount;
+    document.getElementById('decoy-count').textContent = decoyCount;
+
+    const threshold = parseInt(document.getElementById('threshold-slider').value);
+    const pct = Math.min(100, Math.round((requestCount / threshold) * 100));
+    botPct = Math.min(100, botPct + rand(2, 8));
+    depthLevel = Math.min(100, depthLevel + rand(3, 10));
+
+    document.getElementById('bot-pct').textContent = botPct + '%';
+    document.getElementById('rate-pct').textContent = pct + '%';
+    document.getElementById('depth-pct').textContent = depthLevel;
+
+    const botBar = document.getElementById('bot-bar');
+    const rateBar = document.getElementById('rate-bar');
+    const depthBar = document.getElementById('depth-bar');
+
+    botBar.style.width = botPct + '%';
+    botBar.className = 'bar-fill' + (botPct > 70 ? ' high' : botPct > 40 ? ' med' : '');
+
+    rateBar.style.width = pct + '%';
+    rateBar.className = 'bar-fill' + (pct > 70 ? ' high' : pct > 40 ? ' med' : '');
+
+    depthBar.style.width = Math.min(100, depthLevel) + '%';
+
+    // Threat level
+    const threatEl = document.getElementById('threat-level');
+    const dot = document.getElementById('threat-dot');
+    if (botPct > 70) {
+      threatEl.textContent = 'CRITICAL';
+      threatEl.className = 'metric-value alert';
+      dot.style.opacity = '1';
+      dot.style.animation = 'pulse 0.5s infinite';
+    } else if (botPct > 40) {
+      threatEl.textContent = 'HIGH';
+      threatEl.className = 'metric-value warn';
+      dot.style.opacity = '0.8';
+    } else {
+      threatEl.textContent = 'LOW';
+      threatEl.className = 'metric-value';
+    }
+  }
+
+  function simulateRequest(ip, agent, route) {
+    if (!systemActive) return;
+    requestCount++;
+
+    const threshold = parseInt(document.getElementById('threshold-slider').value);
+    addLog('DETECT', `${ip} → ${route} [${agent}]`, requestCount > threshold ? 'warn' : '');
+
+    if (requestCount >= threshold && requestCount % threshold === 0) {
+      triggerTrap(ip, agent);
+    }
+
+    updateMetrics();
+  }
+
+  function triggerTrap(ip, agent) {
+    trapCount++;
+    decoyCount++;
+    addLog('TRAP', `BOT TRAPPED: ${ip} → Serving decoy layer #${decoyCount}`, 'trap');
+    addLog('DECOY', `Generating endless HTML for agent: ${agent}`, 'trap');
+
+    if (document.getElementById('toggle-iframe').classList.contains('on')) {
+      addLog('IFRAME', `Labyrinth activated — depth: ${document.getElementById('depth-slider').value}`, 'trap');
+    }
+
+    streamDecoyHTML();
+    updateMetrics();
+  }
+
+  function simulateAttack() {
+    if (isAttacking) {
+      stopAttack();
+      return;
+    }
+
+    isAttacking = true;
+    requestCount = 0;
+    trapCount = 0;
+    decoyCount = 0;
+    botPct = 0;
+    depthLevel = 0;
+
+    const btn = document.querySelector('.btn.danger');
+    btn.textContent = '■ STOP SIMULATION';
+
+    addLog('SIM', '--- ATTACK SIMULATION STARTED ---', 'alert');
+    addLog('SIM', `Simulating bot swarm from multiple IPs`, 'warn');
+
+    let count = 0;
+    attackInterval = setInterval(() => {
+      const ip = fakeIPs();
+      const agent = fakeAgents[rand(0, fakeAgents.length-1)];
+      const route = fakeRoutes[rand(0, fakeRoutes.length-1)];
+      simulateRequest(ip, agent, route);
+      count++;
+      if (count > 120) stopAttack();
+    }, 150);
+  }
+
+  function stopAttack() {
+    isAttacking = false;
+    clearInterval(attackInterval);
+    const btn = document.querySelector('.btn.danger');
+    btn.textContent = '⚡ SIMULATE ATTACK';
+    addLog('SIM', '--- SIMULATION ENDED ---', 'warn');
+  }
+
+  // Boot sequence
+  setTimeout(() => addLog('SYSTEM', 'Honeypot system initialized', 'trap'), 300);
+  setTimeout(() => addLog('SYSTEM', 'Detection engine loaded', 'trap'), 600);
+  setTimeout(() => addLog('SYSTEM', 'Decoy generator ready — awaiting threats...', 'trap'), 900);
+  setTimeout(() => addLog('CONFIG', `Threshold: ${document.getElementById('threshold-slider').value} req/min`, ''), 1200);
+</script>
+</body>
+</html>
