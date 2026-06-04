@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NecroScan — Security Audit Terminal</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #050a05;
+    --bg2:      #080f08;
+    --panel:    #0a110a;
+    --green:    #00ff41;
+    --green2:   #00cc33;
+    --green-dim:#004d14;
+    --amber:    #ffb300;
+    --red:      #ff2020;
+    --red-dim:  #3a0000;
+    --blue:     #00cfff;
+    --white:    #d0ffd0;
+    --gray:     #3a4a3a;
+    --border:   #1a2e1a;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+
+  /* ── SCANLINE OVERLAY ── */
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,255,65,0.015) 2px,
+      rgba(0,255,65,0.015) 4px
+    );
+    pointer-events:none;
+    z-index:9999;
+  }
+
+  /* ── CIRCUIT PATTERN ── */
+  body::after {
+    content:'';
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(0,255,65,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,65,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  .wrapper { position:relative; z-index:1; max-width:1100px; margin:0 auto; padding:20px; }
+
+  /* ── HEADER ── */
+  header {
+    border: 1px solid var(--green-dim);
+    border-bottom: 2px solid var(--green);
+    padding: 20px 30px;
+    margin-bottom: 24px;
+    position: relative;
+    background: linear-gradient(180deg, rgba(0,255,65,0.05) 0%, transparent 100%);
+    overflow: hidden;
+  }
+
+  header::before {
+    content:'';
+    position:absolute; top:0; left:-100%;
+    width:60%; height:100%;
+    background: linear-gradient(90deg, transparent, rgba(0,255,65,0.08), transparent);
+    animation: sweep 4s linear infinite;
+  }
+  @keyframes sweep { to { left: 150%; } }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .skull-icon {
+    font-size: 52px;
+    filter: drop-shadow(0 0 12px var(--green));
+    animation: pulse 2s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse {
+    0%,100% { filter: drop-shadow(0 0 8px var(--green)); }
+    50%      { filter: drop-shadow(0 0 24px var(--green)) drop-shadow(0 0 48px var(--green2)); }
+  }
+
+  h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(28px, 6vw, 52px);
+    font-weight: 900;
+    color: var(--green);
+    text-shadow: 0 0 20px var(--green), 0 0 40px var(--green2);
+    letter-spacing: 0.1em;
+    animation: glitch 8s infinite;
+  }
+
+  @keyframes glitch {
+    0%,94%,100% { text-shadow: 0 0 20px var(--green), 0 0 40px var(--green2); transform: none; }
+    95% { text-shadow: -2px 0 var(--red), 2px 0 var(--blue); transform: translateX(2px); }
+    96% { text-shadow: 2px 0 var(--red), -2px 0 var(--blue); transform: translateX(-2px); }
+    97% { text-shadow: 0 0 20px var(--green); transform: none; }
+  }
+
+  .tagline {
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    color: var(--green2);
+    letter-spacing: 0.15em;
+    margin-top: 4px;
+    opacity: 0.8;
+  }
+
+  .engines {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+
+  .engine-badge {
+    font-size: 11px;
+    padding: 4px 12px;
+    border: 1px solid var(--green-dim);
+    color: var(--green2);
+    letter-spacing: 0.1em;
+    background: rgba(0,255,65,0.04);
+    position: relative;
+    overflow: hidden;
+  }
+  .engine-badge::before {
+    content: '▶ ';
+    color: var(--green);
+  }
+
+  .status-bar {
+    display: flex;
+    gap: 20px;
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--green-dim);
+    flex-wrap: wrap;
+  }
+  .status-bar span { color: var(--green); }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--green-dim);
+    margin-bottom: 20px;
+  }
+
+  .tab {
+    padding: 10px 22px;
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-bottom: none;
+    color: var(--gray);
+    background: transparent;
+    transition: all 0.2s;
+    position: relative;
+    top: 1px;
+  }
+  .tab:hover { color: var(--green2); border-color: var(--green-dim); }
+  .tab.active {
+    color: var(--green);
+    border-color: var(--green-dim);
+    border-bottom-color: var(--bg);
+    background: var(--panel);
+    text-shadow: 0 0 8px var(--green);
+  }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── INPUT PANELS ── */
+  .input-section {
+    border: 1px solid var(--green-dim);
+    background: var(--panel);
+    margin-bottom: 20px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--green-dim);
+    background: rgba(0,255,65,0.04);
+  }
+
+  .section-header .label {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: 0.12em;
+  }
+
+  .section-header .engine-tag {
+    font-size: 10px;
+    padding: 2px 8px;
+    border: 1px solid var(--green-dim);
+    color: var(--green2);
+    margin-left: auto;
+  }
+
+  textarea, input[type="text"] {
+    width: 100%;
+    background: #030803;
+    border: none;
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    padding: 14px 16px;
+    resize: vertical;
+    outline: none;
+    line-height: 1.6;
+    caret-color: var(--green);
+  }
+  textarea::placeholder, input::placeholder { color: #1a3a1a; }
+  textarea:focus, input:focus { background: #040d04; }
+
+  input[type="text"] { resize: none; }
+
+  /* ── SCAN BUTTON ── */
+  .scan-btn {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    background: transparent;
+    border: 2px solid var(--green);
+    color: var(--green);
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+    margin-bottom: 24px;
+    text-shadow: 0 0 8px var(--green);
+  }
+  .scan-btn::before {
+    content:'';
+    position:absolute; inset:0;
+    background: var(--green);
+    transform: translateX(-100%);
+    transition: transform 0.3s;
+    z-index: 0;
+  }
+  .scan-btn:hover::before { transform: translateX(0); }
+  .scan-btn:hover { color: var(--bg); text-shadow: none; box-shadow: 0 0 30px var(--green); }
+  .scan-btn span { position:relative; z-index:1; }
+
+  .scan-btn.scanning {
+    border-color: var(--amber);
+    color: var(--amber);
+    text-shadow: 0 0 8px var(--amber);
+    animation: scanpulse 0.5s ease-in-out infinite alternate;
+  }
+  @keyframes scanpulse {
+    from { opacity: 0.7; }
+    to   { opacity: 1; }
+  }
+
+  /* ── RESULTS ── */
+  #results { display: none; }
+
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border: 1px solid var(--green);
+    border-bottom: none;
+    background: rgba(0,255,65,0.06);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .results-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: 0.1em;
+  }
+
+  .score-display {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .score-num {
+    font-family: 'VT323', monospace;
+    font-size: 36px;
+    line-height: 1;
+  }
+  .score-num.critical { color: var(--red); text-shadow: 0 0 10px var(--red); }
+  .score-num.warning  { color: var(--amber); text-shadow: 0 0 10px var(--amber); }
+  .score-num.info     { color: var(--blue); text-shadow: 0 0 10px var(--blue); }
+  .score-label { font-size: 10px; color: var(--gray); letter-spacing: 0.1em; }
+
+  .findings-list {
+    border: 1px solid var(--green-dim);
+    border-top: none;
+  }
+
+  .finding {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: start;
+    animation: fadeIn 0.3s ease both;
+    transition: background 0.2s;
+  }
+  .finding:hover { background: rgba(0,255,65,0.03); }
+  .finding:last-child { border-bottom: none; }
+
+  @keyframes fadeIn {
+    from { opacity:0; transform: translateX(-10px); }
+    to   { opacity:1; transform: translateX(0); }
+  }
+
+  .finding-icon { font-size: 18px; margin-top: 1px; }
+
+  .finding-body {}
+  .finding-title {
+    font-size: 13px;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  .finding-title.critical { color: var(--red); }
+  .finding-title.warning  { color: var(--amber); }
+  .finding-title.info     { color: var(--blue); }
+  .finding-title.safe     { color: var(--green); }
+
+  .finding-desc { font-size: 12px; color: #7a9a7a; line-height: 1.5; }
+  .finding-match {
+    font-size: 11px;
+    background: #0a1a0a;
+    border-left: 3px solid var(--green-dim);
+    padding: 6px 10px;
+    margin-top: 6px;
+    color: var(--amber);
+    word-break: break-all;
+  }
+  .finding-fix {
+    font-size: 11px;
+    color: var(--green2);
+    margin-top: 6px;
+  }
+  .finding-fix::before { content: '→ FIX: '; color: var(--green); }
+
+  .finding-engine {
+    font-size: 10px;
+    color: var(--green-dim);
+    text-align: right;
+    white-space: nowrap;
+    padding: 2px 6px;
+    border: 1px solid var(--green-dim);
+    height: fit-content;
+  }
+
+  /* ── EMPTY / SCANNING STATE ── */
+  .scan-progress {
+    border: 1px solid var(--green-dim);
+    padding: 30px;
+    text-align: center;
+    display: none;
+  }
+
+  .progress-bar-wrap {
+    height: 4px;
+    background: var(--green-dim);
+    margin: 16px 0;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: var(--green);
+    width: 0%;
+    transition: width 0.1s;
+    box-shadow: 0 0 10px var(--green);
+  }
+
+  .progress-text {
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+    color: var(--green2);
+    letter-spacing: 0.1em;
+  }
+
+  /* ── THREAT METER ── */
+  .threat-meter {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--green-dim);
+    margin-bottom: 20px;
+    background: var(--panel);
+  }
+
+  .meter-label {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    color: var(--gray);
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+
+  .meter-track {
+    flex: 1;
+    height: 8px;
+    background: #0a150a;
+    border: 1px solid var(--green-dim);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .meter-fill {
+    height: 100%;
+    width: 0%;
+    transition: width 1s ease, background 1s ease;
+    box-shadow: 0 0 8px currentColor;
+  }
+
+  .meter-value {
+    font-family: 'VT323', monospace;
+    font-size: 24px;
+    width: 50px;
+    text-align: right;
+  }
+
+  /* ── NO RESULTS ── */
+  .no-results {
+    text-align: center;
+    padding: 40px;
+    color: var(--green-dim);
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    border: 1px solid var(--border);
+    letter-spacing: 0.1em;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    margin-top: 30px;
+    padding: 14px;
+    border-top: 1px solid var(--green-dim);
+    font-size: 11px;
+    color: var(--green-dim);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  footer span { color: var(--green2); }
+
+  /* ── BLINK ── */
+  .blink { animation: blink 1s step-end infinite; }
+  @keyframes blink { 50% { opacity:0; } }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--green-dim); }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-top">
+      <div class="skull-icon">☠</div>
+      <div>
+        <h1>NECROSCAN</h1>
+        <div class="tagline">// GOOGLE CODE NECROMANCY PROJECT — SECURITY AUDIT TERMINAL v3.14</div>
+      </div>
+    </div>
+    <div class="engines">
+      <div class="engine-badge">RATS ENGINE</div>
+      <div class="engine-badge">DOM SNITCH ENGINE</div>
+      <div class="engine-badge">RATPROXY ENGINE</div>
+    </div>
+    <div class="status-bar">
+      <div>SYSTEM: <span>ONLINE</span></div>
+      <div>ENGINES: <span>3/3 LOADED</span></div>
+      <div>ORIGIN: <span>code.google.com/archive</span></div>
+      <div>STATUS: <span class="blink">READY_</span></div>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('code')">[ CODE SCAN ]</button>
+    <button class="tab" onclick="switchTab('dom')">[ DOM SCAN ]</button>
+    <button class="tab" onclick="switchTab('headers')">[ HEADER SCAN ]</button>
+    <button class="tab" onclick="switchTab('full')">[ FULL AUDIT ]</button>
+  </div>
+
+  <!-- CODE SCAN TAB -->
+  <div class="tab-panel active" id="tab-code">
+    <div class="input-section">
+      <div class="section-header">
+        <span class="label">⚙ RATS ENGINE — SOURCE CODE ANALYZER</span>
+        <span class="engine-tag">C / PHP / Python / JS / Ruby</span>
+      </div>
+      <textarea id="code-input" rows="10" placeholder="// Paste source code here...
+// RATS will scan for: buffer overflows, SQL injection, eval() abuse,
+// command injection, TOCTOU race conditions, unsafe functions...
+
+function login(user, pass) {
+  db.query('SELECT * FROM users WHERE user=\'' + user + '\'');
+  eval(pass);
+}"></textarea>
+    </div>
+    <button class="scan-btn" onclick="runScan('code')"><span>⚡ INITIATE RATS SCAN</span></button>
+  </div>
+
+  <!-- DOM SCAN TAB -->
+  <div class="tab-panel" id="tab-dom">
+    <div class="input-section">
+      <div class="section-header">
+        <span class="label">🔍 DOM SNITCH ENGINE — CLIENT-SIDE INTERCEPTOR</span>
+        <span class="engine-tag">JavaScript / HTML</span>
+      </div>
+      <textarea id="dom-input" rows="10" placeholder="<!-- Paste JavaScript or HTML here -->
+<!-- DOM Snitch will flag: innerHTML, document.write, eval(),
+     postMessage, untrusted script sources, mixed content... -->
+
+document.getElementById('out').innerHTML = location.hash;
+document.write('<script src=' + userInput + '></script>');
+window.eval(data);"></textarea>
+    </div>
+    <button class="scan-btn" onclick="runScan('dom')"><span>⚡ INITIATE DOM SNITCH SCAN</span></button>
+  </div>
+
+  <!-- HEADERS TAB -->
+  <div class="tab-panel" id="tab-headers">
+    <div class="input-section">
+      <div class="section-header">
+        <span class="label">🌐 RATPROXY ENGINE — HTTP HEADER ANALYZER</span>
+        <span class="engine-tag">HTTP Response Headers</span>
+      </div>
+      <textarea id="headers-input" rows="10" placeholder="Paste raw HTTP response headers here...
+RatProxy will check for missing security headers, insecure config, CORS issues...
+
+HTTP/1.1 200 OK
+Content-Type: text/html
+Server: Apache/2.4.1
+X-Powered-By: PHP/5.6"></textarea>
+    </div>
+    <button class="scan-btn" onclick="runScan('headers')"><span>⚡ INITIATE RATPROXY SCAN</span></button>
+  </div>
+
+  <!-- FULL AUDIT TAB -->
+  <div class="tab-panel" id="tab-full">
+    <div class="input-section">
+      <div class="section-header">
+        <span class="label">⚙ RATS — SOURCE CODE</span>
+        <span class="engine-tag">Layer 1</span>
+      </div>
+      <textarea id="full-code" rows="5" placeholder="// Paste source code (JS, PHP, Python, Ruby)..."></textarea>
+    </div>
+    <div class="input-section">
+      <div class="section-header">
+        <span class="label">🔍 DOM SNITCH — CLIENT-SIDE JS/HTML</span>
+        <span class="engine-tag">Layer 2</span>
+      </div>
+      <textarea id="full-dom" rows="5" placeholder="<!-- Paste JavaScript or HTML for DOM analysis... -->"></textarea>
+    </div>
+    <div class="input-section">
+      <div class="section-header">
+        <span class="label">🌐 RATPROXY — HTTP HEADERS</span>
+        <span class="engine-tag">Layer 3</span>
+      </div>
+      <textarea id="full-headers" rows="4" placeholder="Paste HTTP response headers..."></textarea>
+    </div>
+    <button class="scan-btn" onclick="runScan('full')"><span>⚡ LAUNCH FULL 3-ENGINE AUDIT</span></button>
+  </div>
+
+  <!-- SCAN PROGRESS -->
+  <div class="scan-progress" id="scan-progress">
+    <div class="progress-text" id="progress-text">INITIALIZING SCAN ENGINES...</div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+  </div>
+
+  <!-- THREAT METER -->
+  <div class="threat-meter" id="threat-meter" style="display:none">
+    <div class="meter-label">THREAT<br>LEVEL</div>
+    <div class="meter-track">
+      <div class="meter-fill" id="meter-fill"></div>
+    </div>
+    <div class="meter-value" id="meter-value">0%</div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results">
+    <div class="results-header">
+      <div class="results-title">▶ SCAN REPORT — <span id="result-timestamp"></span></div>
+      <div class="score-display">
+        <div>
+          <div class="score-num critical" id="count-critical">0</div>
+          <div class="score-label">CRITICAL</div>
+        </div>
+        <div>
+          <div class="score-num warning" id="count-warning">0</div>
+          <div class="score-label">WARNING</div>
+        </div>
+        <div>
+          <div class="score-num info" id="count-info">0</div>
+          <div class="score-label">INFO</div>
+        </div>
+      </div>
+    </div>
+    <div class="findings-list" id="findings-list"></div>
+  </div>
+
+  <footer>
+    <div>NECROSCAN v3.14 // BUILT FROM GOOGLE CODE ARCHIVE</div>
+    <div>ENGINES: <span>RATS</span> + <span>DOM SNITCH</span> + <span>RATPROXY</span></div>
+    <div>ORIGIN: <span>code.google.com/archive // RESURRECTED 2026</span></div>
+  </footer>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  RATS ENGINE — Source Code Vulnerability Rules
+// ═══════════════════════════════════════════════
+const RATS_RULES = [
+  { id:'R01', sev:'critical', pattern:/eval\s*\(/gi,          title:'Unsafe eval() Usage',           desc:'eval() executes arbitrary code and is a major injection vector. Attacker-controlled input passed to eval() allows full code execution.',          fix:'Replace eval() with JSON.parse() for data or use Function() with strict input validation.' },
+  { id:'R02', sev:'critical', pattern:/exec\s*\(/gi,          title:'Shell Command Injection Risk',   desc:'exec() can execute arbitrary OS commands. If user input reaches this call, full server compromise is possible.',                                 fix:'Use parameterized subprocess calls. Never concatenate user input into shell commands.' },
+  { id:'R03', sev:'critical', pattern:/SELECT\s+.+\+\s*['"$]|query\s*\(.+\+/gi, title:'SQL Injection Vector',         desc:'RATS detected string concatenation in a SQL query. This is the classic SQL injection pattern — user input directly in a query string.',          fix:'Use parameterized queries or prepared statements. Never build SQL by concatenating strings.' },
+  { id:'R04', sev:'critical', pattern:/strcpy\s*\(|strcat\s*\(|sprintf\s*\(|gets\s*\(/gi, title:'Buffer Overflow Risk (C/C++)', desc:'Unsafe C string functions with no bounds checking. These are the classic RATS buffer overflow targets: strcpy, strcat, sprintf, gets.',    fix:'Replace with safe alternatives: strncpy, strncat, snprintf, fgets.' },
+  { id:'R05', sev:'warning',  pattern:/innerHTML\s*=/gi,       title:'DOM XSS via innerHTML',          desc:'Assigning to innerHTML with untrusted data causes Cross-Site Scripting. This is also flagged by DOM Snitch.',                                    fix:'Use textContent instead of innerHTML, or sanitize with DOMPurify before assignment.' },
+  { id:'R06', sev:'warning',  pattern:/document\.write\s*\(/gi,title:'document.write() Usage',        desc:'document.write() is dangerous with dynamic content and can be used for XSS injection.',                                                          fix:'Use DOM manipulation methods (createElement, appendChild) instead.' },
+  { id:'R07', sev:'warning',  pattern:/md5\s*\(|sha1\s*\(/gi,  title:'Weak Hashing Algorithm',        desc:'MD5 and SHA-1 are cryptographically broken. Do not use for passwords or security-critical hashing.',                                             fix:'Use bcrypt, scrypt, or Argon2 for passwords. Use SHA-256+ for data integrity.' },
+  { id:'R08', sev:'warning',  pattern:/password\s*=\s*['"][^'"]{3,}/gi, title:'Hardcoded Password Detected',  desc:'A hardcoded credential was detected in source code. This is a critical secret exposure risk.',                                                  fix:'Move credentials to environment variables or a secrets manager. Never commit passwords.' },
+  { id:'R09', sev:'warning',  pattern:/\bsystem\s*\(/gi,       title:'system() Call Detected',        desc:'system() executes shell commands. Dangerous if any part is user-controlled.',                                                                    fix:'Avoid system() entirely or use subprocess with an argument list, never a string.' },
+  { id:'R10', sev:'info',     pattern:/TODO|FIXME|HACK|XXX/gi, title:'Security Debt Marker',          desc:'Code contains TODO/FIXME/HACK markers that may indicate unfinished security logic.',                                                              fix:'Review all markers and ensure none relate to authentication, authorization, or input handling.' },
+  { id:'R11', sev:'info',     pattern:/console\.log\s*\(.*(password|token|secret|key)/gi, title:'Sensitive Data Logged',        desc:'Logging of sensitive variables like passwords or tokens detected. Logs can be harvested by attackers.',                                       fix:'Remove all logging of sensitive data. Use log scrubbing in production.' },
+  { id:'R12', sev:'critical', pattern:/deserializ|pickle\.loads|unserialize/gi, title:'Unsafe Deserialization',       desc:'Deserialization of untrusted data can lead to remote code execution. One of the OWASP Top 10.',                                              fix:'Validate serialized data with digital signatures before deserializing. Use safe formats like JSON.' },
+];
+
+// ═══════════════════════════════════════════════
+//  DOM SNITCH ENGINE — Client-Side DOM Rules
+// ═══════════════════════════════════════════════
+const DOMSNITCH_RULES = [
+  { id:'D01', sev:'critical', pattern:/innerHTML\s*=\s*(location|document\.URL|window\.name|decodeURI)/gi, title:'DOM XSS: Tainted Source → innerHTML',   desc:'DOM Snitch intercepted: untrusted browser source (location, URL) flowing directly into innerHTML. Classic reflected DOM XSS.', fix:'Sanitize with DOMPurify.sanitize() before assigning to innerHTML.' },
+  { id:'D02', sev:'critical', pattern:/window\.eval\s*\(|self\.eval\s*\(/gi,     title:'Privileged eval() Intercept',        desc:'DOM Snitch hook triggered: window.eval() or self.eval() — these bypass many sandboxes and can escalate privileges.',         fix:'Remove all eval usage. Use JSON.parse() or compile templates at build time.' },
+  { id:'D03', sev:'critical', pattern:/document\.write\s*\(.*(location|src\s*=\s*['"]?https?)/gi, title:'Script Injection via document.write', desc:'DOM Snitch detected dynamic script injection through document.write with external URL or location-derived data.',           fix:'Never inject external scripts dynamically. Use static script tags or trusted CDN hashes.' },
+  { id:'D04', sev:'warning',  pattern:/postMessage\s*\(/gi,                       title:'postMessage Usage Detected',         desc:'window.postMessage sends/receives data cross-origin. Without origin validation, this is a DOM-based XSS vector.',               fix:'Always validate event.origin before processing postMessage data.' },
+  { id:'D05', sev:'warning',  pattern:/location\.hash|location\.search|location\.href/gi, title:'Unvalidated URL Parameter Read',    desc:'DOM Snitch flagged: reading from location.hash/search without sanitization. Common source for DOM-based XSS.',              fix:'Sanitize all URL parameters before using in DOM operations. Use encodeURIComponent.' },
+  { id:'D06', sev:'warning',  pattern:/src\s*=\s*[`'"]\s*https?:\/\//gi,          title:'Mixed/Untrusted Script Source',      desc:'External script source detected. DOM Snitch flags scripts not served from the application domain.',                              fix:'Host scripts locally or use Subresource Integrity (SRI) hashes on CDN scripts.' },
+  { id:'D07', sev:'warning',  pattern:/\.outerHTML\s*=/gi,                         title:'outerHTML Assignment Risk',          desc:'outerHTML replaces an entire element with raw HTML — equivalent risk to innerHTML.',                                            fix:'Use DOM methods (replaceWith, cloneNode) instead of outerHTML assignment.' },
+  { id:'D08', sev:'info',     pattern:/localStorage\.(setItem|getItem)/gi,         title:'localStorage Access Detected',       desc:'DOM Snitch noted localStorage usage. Data stored here is accessible to any script on the domain — XSS can steal it.',           fix:'Never store tokens or credentials in localStorage. Use httpOnly cookies.' },
+  { id:'D09', sev:'info',     pattern:/document\.cookie/gi,                        title:'Cookie Access Detected',             desc:'Direct document.cookie access detected. Could expose session cookies to XSS if not properly protected.',                         fix:'Set cookies with httpOnly and Secure flags. Use SameSite=Strict.' },
+  { id:'D10', sev:'critical', pattern:/new\s+Function\s*\(/gi,                     title:'Dynamic Function Constructor',       desc:'new Function() is equivalent to eval() and executes arbitrary code. DOM Snitch intercepts this pattern.',                      fix:'Replace with pre-compiled functions. This pattern is almost never necessary.' },
+];
+
+// ═══════════════════════════════════════════════
+//  RATPROXY ENGINE — HTTP Header Security Rules
+// ═══════════════════════════════════════════════
+const RATPROXY_RULES = [
+  { id:'P01', sev:'critical', check: h => !h.match(/x-frame-options/i),           title:'Missing X-Frame-Options',            desc:'RatProxy: No X-Frame-Options header. Site is vulnerable to clickjacking attacks — attackers can embed it in an invisible iframe.',  fix:'Add: X-Frame-Options: DENY  (or SAMEORIGIN if embedding is needed)' },
+  { id:'P02', sev:'critical', check: h => !h.match(/content-security-policy/i),   title:'Missing Content-Security-Policy',    desc:'RatProxy: No CSP header detected. Without CSP, XSS attacks can load arbitrary scripts, exfiltrate data, or hijack sessions.',        fix:'Add a strict CSP: Content-Security-Policy: default-src \'self\'; script-src \'self\'' },
+  { id:'P03', sev:'critical', check: h => !h.match(/strict-transport-security/i), title:'Missing HSTS Header',                desc:'RatProxy: No HTTP Strict Transport Security. Users can be downgraded to HTTP and subjected to man-in-the-middle attacks.',            fix:'Add: Strict-Transport-Security: max-age=31536000; includeSubDomains; preload' },
+  { id:'P04', sev:'warning',  check: h => !h.match(/x-content-type-options/i),    title:'Missing X-Content-Type-Options',     desc:'RatProxy: No X-Content-Type-Options header. Browsers may MIME-sniff responses leading to XSS via uploaded content.',                fix:'Add: X-Content-Type-Options: nosniff' },
+  { id:'P05', sev:'warning',  check: h => !h.match(/x-xss-protection/i),          title:'Missing X-XSS-Protection',           desc:'RatProxy: No X-XSS-Protection header for older browsers.',                                                                      fix:'Add: X-XSS-Protection: 1; mode=block' },
+  { id:'P06', sev:'warning',  check: h => !h.match(/referrer-policy/i),           title:'Missing Referrer-Policy',            desc:'RatProxy: No Referrer-Policy. Full URL including query strings may leak to third parties via Referer header.',                   fix:'Add: Referrer-Policy: strict-origin-when-cross-origin' },
+  { id:'P07', sev:'warning',  check: h => h.match(/Server:\s*(Apache|nginx|IIS|PHP)/i), title:'Server Version Disclosure',     desc:'RatProxy detected server software version in headers. This aids attackers in identifying known CVEs for this exact version.',      fix:'Configure server to suppress version info: ServerTokens Prod (Apache) or server_tokens off (nginx)' },
+  { id:'P08', sev:'warning',  check: h => h.match(/X-Powered-By/i),               title:'X-Powered-By Header Exposed',        desc:'RatProxy: X-Powered-By discloses backend technology (PHP version, ASP.NET version). Reduces attacker effort.',                    fix:'Remove header: header_remove("X-Powered-By") in PHP, or via server config.' },
+  { id:'P09', sev:'info',     check: h => !h.match(/permissions-policy/i),        title:'Missing Permissions-Policy',         desc:'RatProxy: No Permissions-Policy header. Browser features (camera, mic, geolocation) are unrestricted.',                           fix:'Add: Permissions-Policy: geolocation=(), camera=(), microphone=()' },
+  { id:'P10', sev:'info',     check: h => !h.match(/cache-control/i),             title:'Missing Cache-Control',              desc:'RatProxy: No Cache-Control directive. Sensitive responses may be cached by proxies or browsers.',                                 fix:'Add: Cache-Control: no-store, no-cache for sensitive endpoints.' },
+  { id:'P11', sev:'critical', check: h => h.match(/Access-Control-Allow-Origin:\s*\*/i), title:'CORS Wildcard Origin',          desc:'RatProxy: Access-Control-Allow-Origin: * allows any domain to make credentialed requests. Classic CORS misconfiguration.',         fix:'Replace * with explicit allowed origins: Access-Control-Allow-Origin: https://yourdomain.com' },
+];
+
+// ── SCAN ENGINE ──
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('threat-meter').style.display = 'none';
+}
+
+function getInput(mode) {
+  if (mode === 'code')    return { code: document.getElementById('code-input').value, dom: '', headers: '' };
+  if (mode === 'dom')     return { code: '', dom: document.getElementById('dom-input').value, headers: '' };
+  if (mode === 'headers') return { code: '', dom: '', headers: document.getElementById('headers-input').value };
+  if (mode === 'full')    return {
+    code:    document.getElementById('full-code').value,
+    dom:     document.getElementById('full-dom').value,
+    headers: document.getElementById('full-headers').value,
+  };
+}
+
+function runScan(mode) {
+  const inputs = getInput(mode);
+  const total = inputs.code.length + inputs.dom.length + inputs.headers.length;
+  if (total < 5) { alert('INPUT REQUIRED — Paste code or headers to scan.'); return; }
+
+  const btn = event.target.closest('button');
+  btn.classList.add('scanning');
+  btn.querySelector('span').textContent = '⚡ SCANNING...';
+
+  const progress = document.getElementById('scan-progress');
+  const bar      = document.getElementById('progress-bar');
+  const ptext    = document.getElementById('progress-text');
+  progress.style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('threat-meter').style.display = 'none';
+
+  const steps = [
+    'LOADING VULNERABILITY DATABASES...',
+    'INITIALIZING RATS ENGINE...',
+    'INITIALIZING DOM SNITCH ENGINE...',
+    'INITIALIZING RATPROXY ENGINE...',
+    'PARSING INPUT STRUCTURES...',
+    'RUNNING PATTERN MATCHING...',
+    'CROSS-REFERENCING CVE DATABASE...',
+    'GENERATING THREAT REPORT...',
+  ];
+
+  let step = 0;
+  const interval = setInterval(() => {
+    const pct = Math.round((step / steps.length) * 100);
+    bar.style.width = pct + '%';
+    ptext.textContent = steps[step] || 'FINALIZING...';
+    step++;
+    if (step > steps.length) {
+      clearInterval(interval);
+      bar.style.width = '100%';
+      setTimeout(() => {
+        progress.style.display = 'none';
+        btn.classList.remove('scanning');
+        btn.querySelector('span').textContent = '⚡ SCAN COMPLETE — RUN AGAIN';
+        displayResults(inputs);
+      }, 300);
+    }
+  }, 220);
+}
+
+function displayResults(inputs) {
+  const findings = [];
+
+  // Run RATS
+  if (inputs.code) {
+    RATS_RULES.forEach(rule => {
+      const matches = [...inputs.code.matchAll(rule.pattern)];
+      if (matches.length) {
+        findings.push({ ...rule, engine: 'RATS', match: matches[0][0], count: matches.length });
+      }
+    });
+  }
+
+  // Run DOM Snitch
+  if (inputs.dom) {
+    DOMSNITCH_RULES.forEach(rule => {
+      const matches = [...inputs.dom.matchAll(rule.pattern)];
+      if (matches.length) {
+        findings.push({ ...rule, engine: 'DOM SNITCH', match: matches[0][0], count: matches.length });
+      }
+    });
+  }
+
+  // Run RatProxy
+  if (inputs.headers) {
+    RATPROXY_RULES.forEach(rule => {
+      if (rule.check(inputs.headers)) {
+        findings.push({ ...rule, engine: 'RATPROXY', match: null, count: 1 });
+      }
+    });
+  }
+
+  // Sort: critical first
+  const order = { critical:0, warning:1, info:2 };
+  findings.sort((a,b) => order[a.sev] - order[b.sev]);
+
+  // Counts
+  const nCrit = findings.filter(f=>f.sev==='critical').length;
+  const nWarn = findings.filter(f=>f.sev==='warning').length;
+  const nInfo = findings.filter(f=>f.sev==='info').length;
+
+  document.getElementById('count-critical').textContent = nCrit;
+  document.getElementById('count-warning').textContent  = nWarn;
+  document.getElementById('count-info').textContent     = nInfo;
+  document.getElementById('result-timestamp').textContent = new Date().toISOString().replace('T',' ').slice(0,19);
+
+  // Threat meter
+  const threatPct = Math.min(100, nCrit*25 + nWarn*10 + nInfo*3);
+  const meter = document.getElementById('threat-meter');
+  const fill  = document.getElementById('meter-fill');
+  const val   = document.getElementById('meter-value');
+  meter.style.display = 'flex';
+  setTimeout(() => {
+    fill.style.width = threatPct + '%';
+    fill.style.background = threatPct > 60 ? 'var(--red)' : threatPct > 30 ? 'var(--amber)' : 'var(--green)';
+    fill.style.color       = fill.style.background;
+    val.textContent = threatPct + '%';
+    val.style.color = threatPct > 60 ? 'var(--red)' : threatPct > 30 ? 'var(--amber)' : 'var(--green)';
+  }, 100);
+
+  // Render findings
+  const list = document.getElementById('findings-list');
+  list.innerHTML = '';
+
+  if (!findings.length) {
+    list.innerHTML = '<div class="no-results">✓ NO VULNERABILITIES DETECTED — SCAN CLEAN</div>';
+  } else {
+    findings.forEach((f, i) => {
+      const icons = { critical:'🔴', warning:'🟡', info:'🔵', safe:'🟢' };
+      const div = document.createElement('div');
+      div.className = 'finding';
+      div.style.animationDelay = (i * 0.06) + 's';
+      div.innerHTML = `
+        <div class="finding-icon">${icons[f.sev] || '⚪'}</div>
+        <div class="finding-body">
+          <div class="finding-title ${f.sev}">[${f.id}] ${f.title}${f.count > 1 ? ' ×'+f.count : ''}</div>
+          <div class="finding-desc">${f.desc}</div>
+          ${f.match ? `<div class="finding-match">MATCH: ${f.match.trim().slice(0,120)}</div>` : ''}
+          <div class="finding-fix">${f.fix}</div>
+        </div>
+        <div class="finding-engine">${f.engine}</div>
+      `;
+      list.appendChild(div);
+    });
+  }
+
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+</script>
+</body>
+</html>
