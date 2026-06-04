@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRAVEYARD — Abandoned Repo Hunter</title>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Azeret+Mono:wght@300;400;500;600&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #0a0c0a;
+  --bg2:     #0f120f;
+  --bg3:     #141814;
+  --green:   #39ff14;
+  --green2:  #22cc08;
+  --green3:  rgba(57,255,20,0.12);
+  --green4:  rgba(57,255,20,0.05);
+  --amber:   #ffb800;
+  --red:     #ff4444;
+  --text:    #c8d4c0;
+  --text2:   #7a8c72;
+  --text3:   #3d4d38;
+  --border:  rgba(57,255,20,0.12);
+  --border2: rgba(57,255,20,0.25);
+  --glow:    0 0 20px rgba(57,255,20,0.15);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; min-height: 100vh; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Azeret Mono', monospace;
+  overflow-x: hidden;
+}
+
+/* ── SCANLINES ── */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none; z-index: 999;
+}
+
+/* ── GLOW BG ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 50% 30% at 50% 0%, rgba(57,255,20,0.04) 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
+}
+
+/* ── HEADER ── */
+header {
+  position: relative; z-index: 10;
+  padding: 32px 40px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-end; gap: 32px;
+  flex-wrap: wrap;
+}
+
+.logo-wrap { display: flex; flex-direction: column; gap: 4px; }
+.logo {
+  font-family: 'Silkscreen', monospace;
+  font-size: clamp(28px, 5vw, 48px);
+  color: var(--green);
+  text-shadow: 0 0 30px rgba(57,255,20,0.5), 0 0 60px rgba(57,255,20,0.2);
+  letter-spacing: 0.05em;
+  line-height: 1;
+  animation: flicker 8s ease-in-out infinite;
+}
+@keyframes flicker {
+  0%,94%,96%,98%,100% { opacity: 1; }
+  95%,97%,99% { opacity: 0.85; }
+}
+.logo-sub {
+  font-size: 10px; letter-spacing: 0.3em;
+  color: var(--text2); text-transform: uppercase;
+  font-family: 'Space Mono', monospace;
+}
+
+.hdr-stats {
+  display: flex; gap: 24px; margin-left: auto;
+  align-items: flex-end;
+}
+.hdr-stat { display: flex; flex-direction: column; gap: 2px; align-items: flex-end; }
+.hdr-stat-label { font-size: 9px; letter-spacing: 0.2em; color: var(--text3); text-transform: uppercase; }
+.hdr-stat-val { font-family: 'Silkscreen', monospace; font-size: 18px; color: var(--green); }
+
+/* ── SEARCH PANEL ── */
+.search-panel {
+  position: relative; z-index: 10;
+  padding: 28px 40px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.search-row {
+  display: flex; gap: 12px; align-items: stretch; flex-wrap: wrap;
+}
+
+.search-box {
+  flex: 1; min-width: 200px;
+  position: relative;
+}
+.search-prefix {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  font-family: 'Space Mono', monospace;
+  font-size: 13px; color: var(--green2);
+  pointer-events: none;
+}
+.search-input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--green);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 13px;
+  padding: 12px 14px 12px 28px;
+  outline: none;
+  transition: all 0.2s;
+  caret-color: var(--green);
+}
+.search-input:focus {
+  border-color: var(--green);
+  box-shadow: var(--glow);
+}
+.search-input::placeholder { color: var(--text3); }
+
+.filters-row {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+}
+
+.filter-label {
+  font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--text3); white-space: nowrap;
+}
+
+.filter-select {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 11px;
+  padding: 8px 12px;
+  outline: none; cursor: pointer;
+  transition: border-color 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2339ff14' opacity='0.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+.filter-select:focus { border-color: var(--border2); }
+
+.search-btn {
+  font-family: 'Silkscreen', monospace;
+  font-size: 12px; letter-spacing: 0.1em;
+  padding: 12px 28px;
+  background: transparent;
+  border: 1px solid var(--green);
+  color: var(--green);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative; overflow: hidden;
+  white-space: nowrap;
+}
+.search-btn::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--green3);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 0.2s;
+}
+.search-btn:hover::before { transform: scaleX(1); }
+.search-btn:hover { box-shadow: var(--glow); }
+.search-btn span { position: relative; z-index: 1; }
+.search-btn.loading { opacity: 0.7; pointer-events: none; }
+.search-btn.loading span::after {
+  content: '...';
+  animation: dots 1s infinite;
+}
+@keyframes dots {
+  0%{content:'.'} 33%{content:'..'} 66%{content:'...'} 100%{content:'.'}
+}
+
+/* ── FILTER CHIPS ── */
+.chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  font-size: 10px; letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  cursor: pointer; background: transparent;
+  transition: all 0.15s; font-family: 'Azeret Mono', monospace;
+}
+.chip:hover { border-color: var(--border2); color: var(--text); }
+.chip.active {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green4);
+  text-shadow: 0 0 8px rgba(57,255,20,0.4);
+}
+
+/* ── MAIN ── */
+.main {
+  position: relative; z-index: 10;
+  padding: 28px 40px;
+  max-width: 1400px;
+}
+
+/* ── STATUS BAR ── */
+.status-bar {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 20px;
+  font-size: 11px; color: var(--text2);
+  font-family: 'Space Mono', monospace;
+  flex-wrap: wrap;
+}
+.status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.status-dot.idle { background: var(--text3); box-shadow: none; animation: none; }
+.status-dot.error { background: var(--red); box-shadow: 0 0 8px var(--red); }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+.status-text { color: var(--text); }
+.status-count { margin-left: auto; color: var(--green); font-size: 10px; }
+
+/* ── RESULTS GRID ── */
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 12px;
+}
+
+/* ── REPO CARD ── */
+.repo-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  padding: 0;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+  animation: cardIn 0.3s ease both;
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.repo-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--green2), transparent);
+  opacity: 0; transition: opacity 0.2s;
+}
+.repo-card:hover {
+  border-color: var(--border2);
+  box-shadow: var(--glow);
+}
+.repo-card:hover::before { opacity: 1; }
+
+.card-header {
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.card-icon {
+  font-size: 20px; flex-shrink: 0; margin-top: 2px;
+}
+.card-title-wrap { flex: 1; min-width: 0; }
+.card-name {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px; font-weight: 700;
+  color: var(--green);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+.card-name a {
+  color: inherit; text-decoration: none;
+}
+.card-name a:hover { text-decoration: underline; }
+.card-full-name {
+  font-size: 10px; color: var(--text3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.dead-badge {
+  font-family: 'Silkscreen', monospace;
+  font-size: 8px; letter-spacing: 0.15em;
+  padding: 3px 7px;
+  border: 1px solid;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.dead-badge.archived { border-color: var(--red); color: var(--red); }
+.dead-badge.stale5   { border-color: var(--amber); color: var(--amber); }
+.dead-badge.stale2   { border-color: #ff8800; color: #ff8800; }
+.dead-badge.stale1   { border-color: #aaa; color: #aaa; }
+
+.card-desc {
+  padding: 12px 16px;
+  font-size: 11px; color: var(--text2);
+  line-height: 1.6;
+  border-bottom: 1px solid var(--border);
+  min-height: 52px;
+}
+.card-desc.empty { color: var(--text3); font-style: italic; }
+
+.card-meta {
+  padding: 10px 16px;
+  display: flex; align-items: center; gap: 14px;
+  flex-wrap: wrap;
+}
+.meta-item {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--text2);
+  font-family: 'Space Mono', monospace;
+}
+.meta-icon { font-size: 12px; }
+.meta-val { color: var(--text); }
+.meta-val.green { color: var(--green); }
+.meta-val.amber { color: var(--amber); }
+.meta-val.red   { color: var(--red); }
+
+.card-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+}
+.lang-badge {
+  font-size: 10px; padding: 2px 8px;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-family: 'Azeret Mono', monospace;
+}
+.lang-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  display: inline-block; margin-right: 5px;
+}
+
+.card-actions { display: flex; gap: 6px; }
+.card-btn {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; letter-spacing: 0.1em;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  cursor: pointer; background: transparent;
+  transition: all 0.15s; text-decoration: none;
+  display: inline-flex; align-items: center;
+}
+.card-btn:hover { border-color: var(--green); color: var(--green); }
+.card-btn.primary { border-color: var(--green2); color: var(--green); }
+.card-btn.primary:hover { background: var(--green3); box-shadow: var(--glow); }
+
+/* ── LAST COMMIT BAR ── */
+.staleness-bar {
+  height: 2px;
+  background: var(--bg3);
+  position: relative; overflow: hidden;
+}
+.staleness-fill {
+  height: 100%;
+  transition: width 0.5s ease;
+}
+
+/* ── EMPTY / LOADING STATES ── */
+.state-panel {
+  grid-column: 1/-1;
+  text-align: center; padding: 80px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+}
+.state-ascii {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px; color: var(--text3);
+  line-height: 1.5; white-space: pre;
+}
+.state-msg {
+  font-size: 13px; color: var(--text2);
+  font-family: 'Azeret Mono', monospace;
+}
+.state-sub { font-size: 11px; color: var(--text3); }
+
+/* ── PAGINATION ── */
+.pagination {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; padding: 32px 0 0;
+  grid-column: 1/-1;
+}
+.page-btn {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px; padding: 7px 16px;
+  border: 1px solid var(--border);
+  color: var(--text2); background: transparent;
+  cursor: pointer; transition: all 0.15s;
+}
+.page-btn:hover:not(:disabled) { border-color: var(--green); color: var(--green); }
+.page-btn:disabled { opacity: 0.3; cursor: default; }
+.page-info { font-size: 11px; color: var(--text3); font-family: 'Space Mono', monospace; }
+
+/* ── RATE LIMIT NOTICE ── */
+.rate-notice {
+  font-size: 10px; color: var(--amber);
+  padding: 8px 14px;
+  border: 1px solid rgba(255,184,0,0.2);
+  background: rgba(255,184,0,0.04);
+  margin-bottom: 16px;
+  display: none;
+  font-family: 'Space Mono', monospace;
+}
+.rate-notice.show { display: block; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 600px) {
+  header, .search-panel, .main { padding-left: 16px; padding-right: 16px; }
+  .results-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo-wrap">
+    <div class="logo">☠ GRAVEYARD</div>
+    <div class="logo-sub">GitHub Abandoned Repo Hunter</div>
+  </div>
+  <div class="hdr-stats">
+    <div class="hdr-stat">
+      <div class="hdr-stat-label">Scanned</div>
+      <div class="hdr-stat-val" id="hdrScanned">0</div>
+    </div>
+    <div class="hdr-stat">
+      <div class="hdr-stat-label">Found</div>
+      <div class="hdr-stat-val" id="hdrFound">0</div>
+    </div>
+  </div>
+</header>
+
+<!-- SEARCH PANEL -->
+<div class="search-panel">
+  <div class="search-row">
+    <div class="search-box">
+      <span class="search-prefix">›</span>
+      <input
+        class="search-input"
+        id="searchInput"
+        type="text"
+        placeholder="topic, keyword, or repo name..."
+        value="saas"
+        onkeydown="if(event.key==='Enter') doSearch()"
+      />
+    </div>
+    <button class="search-btn" id="searchBtn" onclick="doSearch()">
+      <span>HUNT REPOS</span>
+    </button>
+  </div>
+
+  <div class="filters-row">
+    <span class="filter-label">Abandoned since:</span>
+    <div class="chip-row" id="staleness">
+      <button class="chip" onclick="setChip('staleness',this,'1')">1+ yr</button>
+      <button class="chip active" onclick="setChip('staleness',this,'2')">2+ yrs</button>
+      <button class="chip" onclick="setChip('staleness',this,'3')">3+ yrs</button>
+      <button class="chip" onclick="setChip('staleness',this,'5')">5+ yrs</button>
+    </div>
+
+    <span class="filter-label" style="margin-left:12px">Min stars:</span>
+    <div class="chip-row" id="stars">
+      <button class="chip" onclick="setChip('stars',this,'10')">10+</button>
+      <button class="chip active" onclick="setChip('stars',this,'50')">50+</button>
+      <button class="chip" onclick="setChip('stars',this,'100')">100+</button>
+      <button class="chip" onclick="setChip('stars',this,'500')">500+</button>
+      <button class="chip" onclick="setChip('stars',this,'1000')">1k+</button>
+    </div>
+
+    <span class="filter-label" style="margin-left:12px">Language:</span>
+    <select class="filter-select" id="langFilter">
+      <option value="">Any</option>
+      <option value="JavaScript">JavaScript</option>
+      <option value="Python">Python</option>
+      <option value="TypeScript">TypeScript</option>
+      <option value="Rust">Rust</option>
+      <option value="Go">Go</option>
+      <option value="Java">Java</option>
+      <option value="C%2B%2B">C++</option>
+      <option value="Ruby">Ruby</option>
+      <option value="Swift">Swift</option>
+      <option value="Kotlin">Kotlin</option>
+      <option value="PHP">PHP</option>
+      <option value="C">C</option>
+    </select>
+
+    <span class="filter-label" style="margin-left:12px">Sort:</span>
+    <select class="filter-select" id="sortFilter">
+      <option value="stars">Stars</option>
+      <option value="updated">Last Updated</option>
+      <option value="forks">Forks</option>
+    </select>
+  </div>
+
+  <!-- Quick topics -->
+  <div class="filters-row">
+    <span class="filter-label">Quick:</span>
+    <div class="chip-row">
+      <button class="chip" onclick="quickSearch('saas')">saas</button>
+      <button class="chip" onclick="quickSearch('game')">game</button>
+      <button class="chip" onclick="quickSearch('cli+tool')">cli tool</button>
+      <button class="chip" onclick="quickSearch('dashboard')">dashboard</button>
+      <button class="chip" onclick="quickSearch('chat+app')">chat app</button>
+      <button class="chip" onclick="quickSearch('api')">api</button>
+      <button class="chip" onclick="quickSearch('mobile')">mobile</button>
+      <button class="chip" onclick="quickSearch('machine+learning')">ML</button>
+      <button class="chip" onclick="quickSearch('cms')">cms</button>
+      <button class="chip" onclick="quickSearch('browser+extension')">extension</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="rate-notice" id="rateNotice">
+    ⚠ GitHub API rate limit reached (60 req/hr unauthenticated). Results may be limited. Try again in a few minutes.
+  </div>
+
+  <div class="status-bar">
+    <div class="status-dot idle" id="statusDot"></div>
+    <span class="status-text" id="statusText">Ready to hunt. Enter a topic and press HUNT REPOS.</span>
+    <span class="status-count" id="statusCount"></span>
+  </div>
+
+  <div class="results-grid" id="resultsGrid">
+    <div class="state-panel">
+      <div class="state-ascii">
+ ██████╗ ██████╗  █████╗ ██╗   ██╗███████╗██╗   ██╗ █████╗ ██████╗ ██████╗
+██╔════╝ ██╔══██╗██╔══██╗██║   ██║██╔════╝╚██╗ ██╔╝██╔══██╗██╔══██╗██╔══██╗
+██║  ███╗██████╔╝███████║██║   ██║█████╗   ╚████╔╝ ███████║██████╔╝██║  ██║
+██║   ██║██╔══██╗██╔══██║╚██╗ ██╔╝██╔══╝    ╚██╔╝  ██╔══██║██╔══██╗██║  ██║
+╚██████╔╝██║  ██║██║  ██║ ╚████╔╝ ███████╗   ██║   ██║  ██║██║  ██║██████╔╝
+ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝
+      </div>
+      <div class="state-msg">Hunting abandoned GitHub repositories...</div>
+      <div class="state-sub">Uses the live GitHub Search API — no auth needed for up to 60 requests/hour</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+let filters = { staleness: '2', stars: '50' };
+let currentPage = 1;
+let lastQuery = '';
+let totalFound = 0;
+let totalScanned = 0;
+
+// ── CHIP TOGGLE ──
+function setChip(group, btn, val) {
+  document.querySelectorAll(`#${group} .chip`).forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filters[group] = val;
+}
+
+// ── QUICK SEARCH ──
+function quickSearch(topic) {
+  document.getElementById('searchInput').value = topic.replace('+', ' ');
+  doSearch();
+}
+
+// ── BUILD GITHUB QUERY ──
+function buildQuery() {
+  const keyword = document.getElementById('searchInput').value.trim() || 'app';
+  const lang    = document.getElementById('langFilter').value;
+  const years   = parseInt(filters.staleness);
+  const minStars= filters.stars;
+
+  // Calculate cutoff date
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - years);
+  const dateStr = cutoff.toISOString().split('T')[0];
+
+  let q = `${keyword.replace(/\s+/g,'+')}+pushed:<${dateStr}+stars:>${minStars}`;
+  if (lang) q += `+language:${lang}`;
+  q += `+fork:false`;
+
+  return q;
+}
+
+// ── SEARCH ──
+async function doSearch(page = 1) {
+  currentPage = page;
+  const sort    = document.getElementById('sortFilter').value;
+  const query   = buildQuery();
+  lastQuery = query;
+
+  const url = `https://api.github.com/search/repositories?q=${query}&sort=${sort}&order=desc&per_page=30&page=${page}`;
+
+  setStatus('scanning', 'Scanning GitHub graveyard...');
+  document.getElementById('searchBtn').classList.add('loading');
+  document.getElementById('rateNotice').classList.remove('show');
+
+  try {
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/vnd.github.v3+json' }
+    });
+
+    if (res.status === 403) {
+      document.getElementById('rateNotice').classList.add('show');
+      setStatus('error', 'Rate limit hit. Try again in a moment.');
+      document.getElementById('searchBtn').classList.remove('loading');
+      return;
+    }
+
+    const data = await res.json();
+
+    if (data.message) {
+      setStatus('error', data.message);
+      document.getElementById('searchBtn').classList.remove('loading');
+      return;
+    }
+
+    const items = data.items || [];
+    const total = Math.min(data.total_count || 0, 1000);
+
+    totalScanned += items.length;
+    totalFound = total;
+
+    document.getElementById('hdrScanned').textContent = totalScanned.toLocaleString();
+    document.getElementById('hdrFound').textContent = total.toLocaleString();
+
+    setStatus('active', `Found ${total.toLocaleString()} abandoned repos matching "${document.getElementById('searchInput').value}"`, items.length);
+    renderCards(items, total, page);
+
+  } catch (err) {
+    setStatus('error', 'Network error — check your connection.');
+    renderEmpty('error');
+  }
+
+  document.getElementById('searchBtn').classList.remove('loading');
+}
+
+// ── RENDER CARDS ──
+function renderCards(items, total, page) {
+  const grid = document.getElementById('resultsGrid');
+  if (!items.length) {
+    renderEmpty('noresults');
+    return;
+  }
+
+  const perPage = 30;
+  const totalPages = Math.ceil(Math.min(total, 1000) / perPage);
+
+  grid.innerHTML = items.map((repo, i) => buildCard(repo, i)).join('') + buildPagination(page, totalPages);
+}
+
+function buildCard(repo, i) {
+  const pushedDate = new Date(repo.pushed_at);
+  const now = new Date();
+  const yearsAgo = ((now - pushedDate) / (1000 * 60 * 60 * 24 * 365)).toFixed(1);
+  const monthsAgo = Math.floor((now - pushedDate) / (1000 * 60 * 60 * 24 * 30));
+
+  // Staleness badge
+  let badge, badgeClass, stalenessColor;
+  if (repo.archived) {
+    badge = 'ARCHIVED'; badgeClass = 'archived'; stalenessColor = '#ff4444';
+  } else if (yearsAgo >= 5) {
+    badge = yearsAgo + ' YRS DEAD'; badgeClass = 'stale5'; stalenessColor = '#ffb800';
+  } else if (yearsAgo >= 2) {
+    badge = yearsAgo + ' YRS DEAD'; badgeClass = 'stale2'; stalenessColor = '#ff8800';
+  } else {
+    badge = monthsAgo + ' MO STALE'; badgeClass = 'stale1'; stalenessColor = '#888';
+  }
+
+  // Staleness bar (% of 10 years)
+  const stalePct = Math.min(100, (parseFloat(yearsAgo) / 10) * 100);
+
+  // Language color
+  const langColors = {
+    JavaScript:'#f1e05a', TypeScript:'#3178c6', Python:'#3572A5',
+    Rust:'#dea584', Go:'#00add8', Java:'#b07219', Ruby:'#701516',
+    'C++':'#f34b7d', C:'#555555', Swift:'#f05138', Kotlin:'#A97BFF',
+    PHP:'#4F5D95', HTML:'#e34c26', CSS:'#563d7c', Shell:'#89e051',
+  };
+  const langColor = langColors[repo.language] || '#666';
+
+  // Last commit display
+  const lastCommit = pushedDate.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+
+  // Stars display
+  const stars = repo.stargazers_count >= 1000
+    ? (repo.stargazers_count / 1000).toFixed(1) + 'k'
+    : repo.stargazers_count;
+
+  const desc = repo.description
+    ? repo.description.slice(0, 100) + (repo.description.length > 100 ? '...' : '')
+    : null;
+
+  // Icon based on topic/language
+  const icons = { JavaScript:'⚡', TypeScript:'⚡', Python:'🐍', Rust:'🦀', Go:'🐹', Java:'☕', Ruby:'💎', Swift:'🍎', Kotlin:'📱', PHP:'🐘' };
+  const icon = icons[repo.language] || '💀';
+
+  return `
+  <div class="repo-card" style="animation-delay:${i*40}ms">
+    <div class="staleness-bar">
+      <div class="staleness-fill" style="width:${stalePct}%;background:${stalenessColor};opacity:0.7"></div>
+    </div>
+    <div class="card-header">
+      <span class="card-icon">${icon}</span>
+      <div class="card-title-wrap">
+        <div class="card-name"><a href="${repo.html_url}" target="_blank" rel="noopener">${repo.name}</a></div>
+        <div class="card-full-name">${repo.full_name}</div>
+      </div>
+      <span class="dead-badge ${badgeClass}">${badge}</span>
+    </div>
+    <div class="card-desc ${desc?'':'empty'}">${desc || '// no description provided'}</div>
+    <div class="card-meta">
+      <div class="meta-item">
+        <span class="meta-icon">★</span>
+        <span class="meta-val ${repo.stargazers_count >= 500 ? 'green' : ''}">${stars}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-icon">⑂</span>
+        <span class="meta-val">${repo.forks_count}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-icon">👁</span>
+        <span class="meta-val">${repo.watchers_count}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-icon">🕐</span>
+        <span class="meta-val ${parseFloat(yearsAgo)>=5?'red':parseFloat(yearsAgo)>=2?'amber':''}">${lastCommit}</span>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="lang-badge">
+        ${repo.language ? `<span class="lang-dot" style="background:${langColor}"></span>${repo.language}` : '—'}
+      </span>
+      <div class="card-actions">
+        ${repo.homepage ? `<a class="card-btn" href="${repo.homepage}" target="_blank" rel="noopener">SITE</a>` : ''}
+        <a class="card-btn primary" href="${repo.html_url}" target="_blank" rel="noopener">VIEW ↗</a>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildPagination(page, totalPages) {
+  if (totalPages <= 1) return '';
+  return `
+  <div class="pagination">
+    <button class="page-btn" onclick="doSearch(${page-1})" ${page<=1?'disabled':''}>← PREV</button>
+    <span class="page-info">Page ${page} of ${totalPages}</span>
+    <button class="page-btn" onclick="doSearch(${page+1})" ${page>=totalPages?'disabled':''}>NEXT →</button>
+  </div>`;
+}
+
+function renderEmpty(type) {
+  const grid = document.getElementById('resultsGrid');
+  if (type === 'noresults') {
+    grid.innerHTML = `<div class="state-panel">
+      <div class="state-ascii">[ NO REMAINS FOUND ]</div>
+      <div class="state-msg">No abandoned repos matched your search.</div>
+      <div class="state-sub">Try a different keyword, fewer stars, or longer time range.</div>
+    </div>`;
+  } else {
+    grid.innerHTML = `<div class="state-panel">
+      <div class="state-ascii">[ SIGNAL LOST ]</div>
+      <div class="state-msg">Could not reach GitHub API.</div>
+      <div class="state-sub">Check your internet connection and try again.</div>
+    </div>`;
+  }
+}
+
+// ── STATUS ──
+function setStatus(type, msg, count) {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  const cnt = document.getElementById('statusCount');
+
+  dot.className = 'status-dot ' + (type === 'scanning' ? '' : type === 'error' ? 'error' : '');
+  txt.textContent = msg;
+  cnt.textContent = count != null ? `${count} results this page` : '';
+}
+
+// ── INIT — auto-search on load ──
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => doSearch(), 300);
+});
+</script>
+</body>
+</html>
